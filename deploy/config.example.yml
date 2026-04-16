@@ -1,0 +1,35 @@
+# mediamtx-ui configuration file
+# Copy to config.yml in the same directory as the binary, or /etc/mediamtx-ui/config.yml
+# All values can also be set as environment variables with the MEDIAMTX_UI_ prefix
+# e.g. server.port → MEDIAMTX_UI_SERVER_PORT
+
+server:
+  host: ""        # bind address, empty = all interfaces
+  port: 9996
+
+mediamtx:
+  api_address: "http://localhost:9997"   # mediamtx API base URL
+  # HTTP Basic Auth for the mediamtx API.
+  # Required when mediamtx has auth enabled (auth.method: internal with users configured).
+  # These should match an admin-level user in mediamtx's internalUsers list.
+  api_user: ""
+  api_pass: ""
+  api_key: ""                             # Bearer token (alternative to user/pass, rarely needed)
+  public_host: ""                         # public hostname/IP for stream URLs (defaults to api_address host)
+  rtsp_port: 8554
+  hls_port: 8888
+  webrtc_port: 8889
+  rtmp_port: 1935
+  config_path: ""   # path to mediamtx.yml for display; leave empty for auto-detect
+
+auth:
+  jwt_secret: "change-me-in-production"   # HMAC-SHA256 secret, change this!
+  jwt_expiry: "24h"
+  initial_admin_user: "admin"
+  initial_admin_pass: "changeme"          # only used if no users exist in DB
+
+db:
+  path: "mediamtx-ui.db"                 # SQLite database file path
+
+log:
+  level: "info"   # debug | info | warn | error

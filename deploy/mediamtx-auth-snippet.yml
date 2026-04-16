@@ -1,0 +1,25 @@
+# Add this to your mediamtx.yml to enable the mediamtx-ui auth callback.
+# Replace MEDIAMTX_UI_HOST with the hostname/IP where mediamtx-ui is running.
+# Port 9996 is the default mediamtx-ui port.
+#
+# With this config, ALL stream access (RTSP/HLS/WebRTC/RTMP) will be
+# authenticated by mediamtx-ui using its SQLite ACL database.
+
+auth:
+  method: http
+  httpAddress: http://MEDIAMTX_UI_HOST:9996/api/v1/mediamtx/auth
+
+# If mediamtx-ui is on the same Docker network:
+# auth:
+#   method: http
+#   httpAddress: http://mediamtx-ui:9996/api/v1/mediamtx/auth
+
+# To allow specific users/paths without going through the callback
+# (useful for internal sources), add exclusions:
+#
+# auth:
+#   method: http
+#   httpAddress: http://mediamtx-ui:9996/api/v1/mediamtx/auth
+#   httpExclude:
+#     - action: publish
+#       ips: [127.0.0.1]   # local publishers bypass auth

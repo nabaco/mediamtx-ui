@@ -1,0 +1,50 @@
+# Build output
+bin/
+/mediamtx-ui
+/package-lock.json
+dist/
+**/dist/
+frontend/node_modules/
+
+# Go
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.test
+*.out
+vendor/
+
+# Environment / secrets
+.env
+.env.*
+!.env.example
+deploy/deploy.local.sh
+scripts/deploy.local.sh
+
+# Database
+*.db
+*.db-shm
+*.db-wal
+
+# Claude Code
+.claude/
+
+# Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Local deploy config (user-specific)
+deploy.local.yml
+config.local.yml

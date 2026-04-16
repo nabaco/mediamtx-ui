@@ -1,0 +1,15 @@
+#!/usr/bin/env bash
+# deploy.local.sh.example
+# Copy this file to deploy.local.sh (it is gitignored) and fill in your values.
+
+# SSH target: user@hostname or user@ip
+DEPLOY_HOST="deploy@192.168.1.100"
+
+# Remote directory to install the binary and config
+DEPLOY_PATH="/opt/mediamtx-ui"
+
+# System user that the service runs as (should match the mediamtx user)
+DEPLOY_USER="mediamtx"
+
+# systemd service name
+DEPLOY_SERVICE="mediamtx-ui"

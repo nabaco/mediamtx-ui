@@ -1,0 +1,53 @@
+version: "3.9"
+
+services:
+  mediamtx-ui:
+    image: ghcr.io/nabaco/mediamtx-ui:latest
+    # To build locally instead:
+    # build:
+    #   context: ..
+    #   dockerfile: deploy/Dockerfile
+    container_name: mediamtx-ui
+    restart: unless-stopped
+    ports:
+      - "9996:9996"
+    volumes:
+      - mediamtx-ui-data:/data
+    environment:
+      # Server
+      MEDIAMTX_UI_SERVER_PORT: "9996"
+
+      # mediamtx API connection (must be reachable from this container)
+      MEDIAMTX_UI_MEDIAMTX_API_ADDRESS: "http://mediamtx:9997"
+      # HTTP Basic Auth for mediamtx API (required if mediamtx has auth enabled)
+      # Default mediamtx:1 image credentials — change if you've customised authInternalUsers
+      MEDIAMTX_UI_MEDIAMTX_API_USER: "mediamtx"
+      MEDIAMTX_UI_MEDIAMTX_API_PASS: "mediamtx"
+      MEDIAMTX_UI_MEDIAMTX_PUBLIC_HOST: "YOUR_SERVER_IP"
+      MEDIAMTX_UI_MEDIAMTX_RTSP_PORT: "8554"
+      MEDIAMTX_UI_MEDIAMTX_HLS_PORT: "8888"
+      MEDIAMTX_UI_MEDIAMTX_WEBRTC_PORT: "8889"
+      MEDIAMTX_UI_MEDIAMTX_RTMP_PORT: "1935"
+
+      # Auth — CHANGE THESE IN PRODUCTION
+      MEDIAMTX_UI_AUTH_JWT_SECRET: "change-me-in-production"
+      MEDIAMTX_UI_AUTH_JWT_EXPIRY: "24h"
+      MEDIAMTX_UI_AUTH_INITIAL_ADMIN_USER: "admin"
+      MEDIAMTX_UI_AUTH_INITIAL_ADMIN_PASS: "changeme"
+
+      # Database
+      MEDIAMTX_UI_DB_PATH: "/data/mediamtx-ui.db"
+
+      # Logging
+      MEDIAMTX_UI_LOG_LEVEL: "info"
+    networks:
+      - mediamtx-net
+
+volumes:
+  mediamtx-ui-data:
+
+networks:
+  mediamtx-net:
+    external: true
+    # Create with: docker network create mediamtx-net
+    # Ensure mediamtx is also on this network
