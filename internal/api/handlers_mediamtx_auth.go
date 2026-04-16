@@ -91,7 +91,12 @@ func (s *Server) checkMediaMTXAuth(req mediamtxAuthRequest) (allowed bool, resol
 		return false, req.User
 	}
 
-	// Check ACL
+	// Admins have implicit access to all streams — no ACL check needed.
+	if user.Role == dbpkg.RoleAdmin {
+		return true, req.User
+	}
+
+	// Check ACL for regular users
 	action := dbpkg.ACLActionRead
 	if req.Action == "publish" {
 		action = dbpkg.ACLActionPublish
