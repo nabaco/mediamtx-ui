@@ -29,11 +29,14 @@
       : info.mediamtxHost
   )
 
+  // Match the page scheme so browsers don't block mixed content when served over HTTPS.
+  const scheme = $derived(window.location.protocol === 'https:' ? 'https' : 'http')
+
   const hlsUrl = $derived(
-    `http://${resolvedHost}:${info.hlsPort}/${streamName}/index.m3u8`
+    `${scheme}://${resolvedHost}:${info.hlsPort}/${streamName}/index.m3u8`
   )
   const webrtcUrl = $derived(
-    `http://${resolvedHost}:${info.webrtcPort}/${streamName}`
+    `${scheme}://${resolvedHost}:${info.webrtcPort}/${streamName}`
   )
 
   function stopAll() {

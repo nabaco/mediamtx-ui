@@ -135,7 +135,8 @@ func (s *Server) handleStreamURLs(w http.ResponseWriter, r *http.Request) {
 		userinfo = url.UserPassword(user.Username, streamToken).String() + "@"
 	}
 
-	hlsURL := fmt.Sprintf("http://%s%s:%d/%s/index.m3u8", userinfo, host, s.cfg.MediaMTX.HLSPort, name)
+	sc := schemeFor(r)
+	hlsURL := fmt.Sprintf("%s://%s%s:%d/%s/index.m3u8", sc, userinfo, host, s.cfg.MediaMTX.HLSPort, name)
 	rtmpURL := fmt.Sprintf("rtmp://%s:%d/%s", host, s.cfg.MediaMTX.RTMPPort, name)
 	if streamToken != "" {
 		rtmpURL = fmt.Sprintf("rtmp://%s%s:%d/%s", userinfo, host, s.cfg.MediaMTX.RTMPPort, name)
@@ -144,7 +145,7 @@ func (s *Server) handleStreamURLs(w http.ResponseWriter, r *http.Request) {
 	jsonOK(w, streamURLsResponse{
 		RTSP:        fmt.Sprintf("rtsp://%s%s:%d/%s", userinfo, host, s.cfg.MediaMTX.RTSPPort, name),
 		HLS:         hlsURL,
-		WebRTC:      fmt.Sprintf("http://%s:%d/%s", host, s.cfg.MediaMTX.WebRTCPort, name),
+		WebRTC:      fmt.Sprintf("%s://%s:%d/%s", sc, host, s.cfg.MediaMTX.WebRTCPort, name),
 		RTMP:        rtmpURL,
 		StreamToken: streamToken,
 		Username:    user.Username,
@@ -209,6 +210,15 @@ func (s *Server) handleDeleteStream(w http.ResponseWriter, r *http.Request) {
 	}
 	_ = dbpkg.DeleteStreamMeta(s.db, name)
 	noContent(w)
+}
+
+// schemeFor returns "https" when the request arrived over TLS or via a TLS proxy
+// (X-Forwarded-Proto: https set by Traefik/Caddy), otherwise "http".
+func schemeFor(r *http.Request) string {
+	if r.TLS != nil || r.Header.Get("X-Forwarded-Proto") == "https" {
+		return "https"
+	}
+	return "http"
 }
 
 // mediamtxPublicHost returns the configured public host (or the API address host).

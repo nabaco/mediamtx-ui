@@ -2,7 +2,7 @@ name: Build & Push Docker Image
 
 on:
   push:
-    branches: [main]
+    branches: [ main ]
 
 env:
   REGISTRY: ghcr.io
@@ -42,7 +42,8 @@ jobs:
           tags: |
             ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
             ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.version.outputs.version }}
-          platforms: linux/amd64,linux/arm64
+          platforms: linux/amd64
+          #linux/arm64
           build-args: |
             VERSION=${{ steps.version.outputs.version }}
           cache-from: type=gha
