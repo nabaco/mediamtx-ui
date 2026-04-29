@@ -48,6 +48,14 @@ export interface StreamURLs {
   isPublishStream?: boolean
 }
 
+export interface StreamConfig {
+  name: string
+  source: string
+  sourceOnDemand: boolean
+  record: boolean
+  maxReaders: number
+}
+
 export interface SystemInfo {
   version: string
   deployType: 'docker' | 'podman' | 'compose' | 'quadlets' | 'systemd' | 'unknown'

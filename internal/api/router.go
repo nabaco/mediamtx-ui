@@ -95,6 +95,7 @@ func (s *Server) Handler(frontendFS fs.FS) http.Handler {
 
 			// Stream management
 			r.Post("/api/v1/streams", s.handleCreateStream)
+			r.Get("/api/v1/streams/{name}/config", s.handleGetStreamConfig)
 			r.Patch("/api/v1/streams/{name}", s.handleUpdateStream)
 			r.Delete("/api/v1/streams/{name}", s.handleDeleteStream)
 

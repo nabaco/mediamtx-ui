@@ -195,6 +195,16 @@ func (s *Server) handleStreamURLs(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+func (s *Server) handleGetStreamConfig(w http.ResponseWriter, r *http.Request) {
+	name := chi.URLParam(r, "name")
+	cfg, err := s.mtx.GetConfigPath(name)
+	if err != nil {
+		jsonErr(w, http.StatusNotFound, "stream config not found")
+		return
+	}
+	jsonOK(w, cfg)
+}
+
 func (s *Server) handleCreateStream(w http.ResponseWriter, r *http.Request) {
 	var req createStreamRequest
 	if err := decodeJSON(r, &req); err != nil || req.Name == "" {

@@ -1,7 +1,7 @@
 import { get } from 'svelte/store'
 import { token, logout } from './stores'
 import type {
-  AuthResponse, MeResponse, Stream, StreamURLs,
+  AuthResponse, MeResponse, Stream, StreamConfig, StreamURLs,
   User, Group, ACL, SystemInfo, SystemConfig, AuditPage,
 } from './types'
 
@@ -57,6 +57,7 @@ export const streams = {
   list: () => get_<Stream[]>('/streams'),
   get: (name: string) => get_<Stream>(`/streams/${encodeURIComponent(name)}`),
   urls: (name: string) => get_<StreamURLs>(`/streams/${encodeURIComponent(name)}/urls`),
+  config: (name: string) => get_<StreamConfig>(`/streams/${encodeURIComponent(name)}/config`),
   create: (data: { name: string; description?: string; source?: string; sourceOnDemand?: boolean; record?: boolean; maxReaders?: number }) =>
     post<{ name: string }>('/streams', data),
   update: (name: string, data: Partial<{ description: string; source: string; sourceOnDemand: boolean; record: boolean; maxReaders: number }>) =>
