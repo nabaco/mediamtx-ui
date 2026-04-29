@@ -21,11 +21,13 @@ func userAndPassFromQuery(query string) (user, pass string) {
 
 // mediamtxAuthRequest is the payload mediamtx POSTs to the auth callback.
 // See: https://github.com/bluenviron/mediamtx#authentication
+// Note: mediamtx v1 uses "ip" (not "remoteAddr") and adds a "token" field.
 type mediamtxAuthRequest struct {
 	User       string `json:"user"`
 	Password   string `json:"password"`
-	RemoteAddr string `json:"remoteAddr"`
-	Action     string `json:"action"` // "read" | "publish"
+	Token      string `json:"token"`   // query-param token (?token=xxx), used by HLS/WebRTC clients
+	IP         string `json:"ip"`      // mediamtx v1 field name
+	Action     string `json:"action"`  // "read" | "publish"
 	Path       string `json:"path"`
 	Protocol   string `json:"protocol"` // "rtsp" | "rtmp" | "hls" | "webrtc" | "srt"
 	ID         string `json:"id"`
@@ -55,7 +57,7 @@ func (s *Server) handleMediaMTXAuth(w http.ResponseWriter, r *http.Request) {
 			StreamPath: req.Path,
 			Action:     req.Action,
 			Protocol:   req.Protocol,
-			RemoteAddr: req.RemoteAddr,
+			RemoteAddr: req.IP,
 			Allowed:    allowed,
 		})
 	}()
@@ -78,8 +80,14 @@ func (s *Server) handleMediaMTXAuth(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) checkMediaMTXAuth(req mediamtxAuthRequest) (allowed bool, resolvedUsername string) {
+	// Extract credentials from query string if not in top-level fields.
 	if req.User == "" && req.Query != "" {
 		req.User, req.Password = userAndPassFromQuery(req.Query)
+	}
+	// Some clients (HLS/WebRTC) use ?token=xxx without a username.
+	// Treat token alone as the stream token for the stream-token-only auth path.
+	if req.Token != "" && req.Password == "" {
+		req.Password = req.Token
 	}
 
 	if req.User == "" {
