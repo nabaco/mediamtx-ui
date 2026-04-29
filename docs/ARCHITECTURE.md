@@ -18,11 +18,11 @@ mediamtx-ui is a single-binary web application that provides a management fronte
 │  │  chi router     │    │   │  HLS       :8888     │
 │  │  JWT middleware │    │   │  WebRTC    :8889     │
 │  │  API handlers   │    │   │  RTMP      :1935     │
-│  └────────┬────────┘    │   └──────────────────────┘
-│           │             │
-│  ┌────────▼────────┐    │◀── auth callback POST
-│  │  SQLite DB      │    │    /api/v1/mediamtx/auth
-│  │  users          │    │
+│  └────────┬────────┘    │   │  SRT       :8890     │
+│           │             │   └──────────────────────┘
+│  ┌────────▼────────┐    │
+│  │  SQLite DB      │    │◀── auth callback POST
+│  │  users          │    │    /api/v1/mediamtx/auth
 │  │  groups         │    │
 │  │  acls           │    │
 │  │  audit_log      │    │
@@ -69,7 +69,7 @@ mediamtx-ui is a single-binary web application that provides a management fronte
 
 ```
 1. User POSTs username + password to POST /api/v1/auth/login
-2. Backend looks up user in SQLite, compares bcrypt(password)
+2. Backend looks up user in SQLite, bcrypt-compares password
 3. On success: signs a JWT (HMAC-SHA256) with {uid, username, role}
 4. JWT stored in localStorage, sent as Bearer token on subsequent requests
 ```
@@ -80,14 +80,35 @@ mediamtx-ui is a single-binary web application that provides a management fronte
 1. User points VLC / browser at rtsp://username:stream_token@host:8554/stream
 2. mediamtx receives the connection request
 3. mediamtx POSTs to http://mediamtx-ui:9996/api/v1/mediamtx/auth
-   Body: { user, password, path, action, protocol, remoteAddr }
+   Body: { user, password, token, path, action, protocol, ip, query }
 4. mediamtx-ui:
    a. Looks up user by username
-   b. bcrypt-compares the provided password against stored stream_token_hash
+   b. Compares the provided password directly against stored stream_token
+      (tokens are stored plaintext — see Credential Separation below)
    c. Runs glob-based ACL check (user direct + group memberships)
    d. Returns 200 (allow) or 401 (deny)
 5. mediamtx allows or rejects the connection
 6. Auth result is written to SQLite audit_log asynchronously
+```
+
+### Slug-based Anonymous RTMP Publish
+
+For RTMP clients (OBS, encoders) that cannot embed user:password in the URL, a
+credential-less publish path is available using a short **publish slug**.
+
+```
+Slug = hex(SHA256(stream_token))[:8]   — 8 hex chars, derived from token
+
+1. Publisher connects to rtmp://host:1935/stream?token=SLUG
+   (OBS: Server = rtmp://host:1935/, Stream Key = stream?token=SLUG)
+2. mediamtx POSTs auth callback with user="", query="token=SLUG"
+3. mediamtx-ui:
+   a. Detects action=publish, no username, query has token= param
+   b. Scans enabled users; finds the one whose PublishSlug(token) == SLUG
+   c. Runs ACL check for that user on the stream path
+   d. Returns 200 (allow) or 401 (deny)
+
+The slug rotates automatically when the user regenerates their stream token.
 ```
 
 ### Credential Separation
@@ -95,9 +116,12 @@ mediamtx-ui is a single-binary web application that provides a management fronte
 | Credential | Purpose | Storage | Embeds in URLs? |
 |---|---|---|---|
 | UI password | Login to web UI only | bcrypt hash | No |
-| Stream token | mediamtx auth callback | bcrypt hash | Yes (`rtsp://user:TOKEN@...`) |
+| Stream token | mediamtx auth callback | **plaintext** | Yes (`rtsp://user:TOKEN@...`) |
 
-Stream tokens are random 32-byte values (base64url encoded). Shown once on generation; must be saved by the user. Can be regenerated without affecting UI login.
+Stream tokens are stored plaintext because they must be retrievable to embed in
+RTSP/HLS URLs and for WHEP browser playback. They are random 32-byte values
+(base64url encoded), shown once at generation, and can be regenerated without
+affecting UI login. Protect the database file at rest.
 
 ## Database Schema
 
@@ -109,6 +133,9 @@ acls            -- id, subject_type, subject_id, stream_pattern, action
 stream_metadata -- path_name, description (supplemental to mediamtx API)
 audit_log       -- id, username, stream_path, action, protocol, remote_addr, allowed
 ```
+
+Note: `stream_token_hash` is named for historical reasons; the value is stored
+plaintext (not hashed) to allow URL embedding.
 
 ### ACL Evaluation
 
@@ -146,11 +173,36 @@ All config keys map to `MEDIAMTX_UI_<KEY>` environment variables (with `_` repla
 | `server.port` | `9996` | HTTP listen port |
 | `mediamtx.api_address` | `http://localhost:9997` | mediamtx API base URL |
 | `mediamtx.public_host` | *(from api_address)* | Public hostname for stream URLs |
+| `mediamtx.rtsp_port` | `8554` | Public RTSP port |
+| `mediamtx.hls_port` | `8888` | Public HLS port |
+| `mediamtx.webrtc_port` | `8889` | Public WebRTC port |
+| `mediamtx.rtmp_port` | `1935` | Public RTMP port |
+| `mediamtx.srt_port` | `8890` | Public SRT port |
 | `mediamtx.config_path` | *(auto-detect)* | Path to mediamtx.yml |
 | `auth.jwt_secret` | `change-me` | **Change in production** |
 | `auth.initial_admin_user` | `admin` | Seeded on first run |
 | `auth.initial_admin_pass` | `changeme` | Seeded on first run |
 | `db.path` | `mediamtx-ui.db` | SQLite file path |
+
+Ports are also read live from the mediamtx global config at request time; the
+config values serve as fallbacks when mediamtx is unreachable.
+
+## REST API (selected endpoints)
+
+All endpoints under `/api/v1/` require a `Bearer` JWT except the auth callback.
+
+| Method | Path | Auth | Description |
+|---|---|---|---|
+| POST | `/api/v1/auth/login` | — | Username/password → JWT |
+| GET | `/api/v1/streams` | user | List streams (filtered by ACL for non-admins) |
+| GET | `/api/v1/streams/{name}` | user | Single stream status |
+| GET | `/api/v1/streams/{name}/urls` | user | Stream URLs with embedded token |
+| GET | `/api/v1/streams/{name}/config` | admin | mediamtx path config (source URL, record, etc.) |
+| POST | `/api/v1/streams` | admin | Create stream path in mediamtx |
+| PATCH | `/api/v1/streams/{name}` | admin | Update stream path config |
+| DELETE | `/api/v1/streams/{name}` | admin | Delete stream path |
+| POST | `/api/v1/mediamtx/auth` | — | mediamtx auth callback |
+| GET | `/metrics` | — | Prometheus metrics |
 
 ## Deployment
 

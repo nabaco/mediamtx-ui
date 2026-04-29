@@ -4,9 +4,11 @@ A self-hosted management frontend for [mediamtx](https://github.com/bluenviron/m
 
 **Features:**
 - Dashboard with live stream status and in-browser preview (WebRTC / HLS)
-- Stream management via mediamtx API (add, edit, delete paths)
+- Stream management via mediamtx API (add, edit, delete paths) with inline row editing
 - User & group management with ACL-based stream access control
-- Separate UI password and stream token per user (stream tokens embed safely in URLs)
+- Separate UI password and stream token per user
+  - Stream tokens embed safely in RTSP/HLS/WebRTC/RTMP URLs
+  - Slug-based anonymous RTMP publish (no credentials in URL — rotates with token)
 - mediamtx auth callback integration — no manual auth config in mediamtx.yml per-stream
 - Audit log of all stream access attempts
 - Read-only display of mediamtx.yml (when accessible on the same host)
@@ -47,9 +49,8 @@ docker compose up -d
 ### As a systemd service (binary)
 
 ```bash
-# Build
-./scripts/bootstrap.sh
-./scripts/build.sh
+# Install dependencies and build
+make
 
 # Copy binary and config
 sudo cp bin/mediamtx-ui /opt/mediamtx-ui/
@@ -99,32 +100,32 @@ See `deploy/mediamtx-auth-snippet.yml` for more options.
 4. Go to **Access Control** → **Add Rule** to grant stream access
 5. Share the stream URLs from the stream detail page with users
 
-**Stream URL format:**
-```
-rtsp://username:STREAM_TOKEN@host:8554/stream-name
-http://host:8888/stream-name/index.m3u8   (HLS)
-http://host:8889/stream-name              (WebRTC)
-```
+**Stream URL formats (populated automatically on the stream detail page):**
+
+| Protocol | URL format | Use |
+|---|---|---|
+| RTSP | `rtsp://username:TOKEN@host:8554/stream` | VLC, ffmpeg, IP cameras |
+| HLS | `http://host:8888/stream/index.m3u8` | Browser, VLC |
+| WebRTC | `http://host:8889/stream` | Built-in browser player |
+| RTMP (view) | `rtmp://username:TOKEN@host:1935/stream` | Viewers |
+| RTMP (publish) | `rtmp://host:1935/stream?token=SLUG` | OBS, encoders (no credentials in URL) |
+| SRT (publish) | `srt://host:8890?streamid=publish:stream:username:TOKEN` | SRT encoders |
+
+**RTMP anonymous publish** — the `?token=SLUG` is a short 8-character slug derived from the user's stream token. When the token is regenerated, the slug changes automatically. In OBS: set **Server** to `rtmp://host:1935/` and **Stream Key** to `stream?token=SLUG`.
 
 ## Building from Source
 
 ```bash
-# Install dependencies
-./scripts/bootstrap.sh
-
-# Build everything (frontend + Go binary)
-./scripts/build.sh
-# Output: bin/mediamtx-ui
-
-# Development mode (hot-reload frontend + Go backend)
-make dev
+# Install Node.js and Go, then:
+make          # build frontend + binary → bin/mediamtx-ui
+make dev      # development mode: hot-reload frontend + Go backend
 ```
 
 ## Architecture
 
 See [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) for a detailed design overview including:
 - Component diagram
-- Authentication flows
+- Authentication flows (UI login, stream access, slug-based publish)
 - Database schema
 - ACL evaluation logic
 - Stream preview protocol selection
@@ -135,7 +136,7 @@ Exposed at `GET /metrics` (no auth required — protect via firewall/network).
 
 | Metric | Description |
 |---|---|
-| `mediamtx_ui_auth_callbacks_total` | mediamtx auth callback results |
+| `mediamtx_ui_auth_callbacks_total` | mediamtx auth callback results (by action and outcome) |
 | `mediamtx_ui_active_streams` | Currently active streams |
 | `mediamtx_ui_stream_readers` | Readers per stream |
 | `mediamtx_ui_login_attempts_total` | UI login attempts by outcome |
@@ -146,8 +147,9 @@ Exposed at `GET /metrics` (no auth required — protect via firewall/network).
 - Change `auth.jwt_secret` and `auth.initial_admin_pass` before first deployment
 - The `/metrics` endpoint has no auth — restrict access at the network level
 - The mediamtx auth callback (`/api/v1/mediamtx/auth`) should be on an internal network
-- Stream tokens are stored as bcrypt hashes; shown only once at generation
-- The UI does not handle TLS — put it behind nginx/caddy for HTTPS
+- Stream tokens are stored **plaintext** in the database — they must be to support embedding in RTSP/HLS URLs and WHEP playback. Protect the database file accordingly.
+- UI passwords are bcrypt-hashed
+- The UI does not handle TLS — put it behind nginx/Caddy/Traefik for HTTPS
 
 ## License
 

@@ -20,6 +20,7 @@ mediamtx:
   hls_port: 8888
   webrtc_port: 8889
   rtmp_port: 1935
+  srt_port: 8890
   config_path: ""   # path to mediamtx.yml for display; leave empty for auto-detect
 
 auth:
