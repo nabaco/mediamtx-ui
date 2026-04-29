@@ -5,6 +5,35 @@
   import { Volume2, VolumeX } from 'lucide-svelte'
   import type { SystemInfo } from '../types'
 
+  // Factory returns a hls.js pLoader that rewrites absolute URLs in manifests to use
+  // the known-good public host, fixing mediamtx embedding its internal hostname in HLS output.
+  function makeManifestRewriteLoader(host: string, port: number, scheme: string) {
+    const DefaultLoader = Hls.DefaultConfig.loader as any
+    return class extends DefaultLoader {
+      load(context: any, config: any, callbacks: any) {
+        const origSuccess = callbacks.onSuccess
+        callbacks = {
+          ...callbacks,
+          onSuccess: (response: any, stats: any, ctx: any, nd: any) => {
+            if (typeof response.data === 'string') {
+              response.data = response.data.replace(/https?:\/\/[^\s"]+/g, (m: string) => {
+                try {
+                  const u = new URL(m)
+                  u.protocol = scheme + ':'
+                  u.hostname = host
+                  u.port = String(port)
+                  return u.toString()
+                } catch { return m }
+              })
+            }
+            origSuccess(response, stats, ctx, nd)
+          }
+        }
+        super.load(context, config, callbacks)
+      }
+    }
+  }
+
   interface Props {
     streamName: string
     info: SystemInfo
@@ -131,7 +160,10 @@
     status = 'loading'
     muted = true
     if (Hls.isSupported()) {
-      const hlsConfig: Partial<Hls['config']> = { enableWorker: false }
+      const hlsConfig: any = {
+        enableWorker: false,
+        pLoader: makeManifestRewriteLoader(resolvedHost, info.hlsPort, scheme),
+      }
       if (username && streamToken) {
         const authHeader = 'Basic ' + btoa(`${username}:${streamToken}`)
         hlsConfig.xhrSetup = (xhr: XMLHttpRequest) => {
