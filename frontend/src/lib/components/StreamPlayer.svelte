@@ -2,6 +2,7 @@
   import { _ } from 'svelte-i18n'
   import Hls from 'hls.js'
   import { onDestroy } from 'svelte'
+  import { Volume2, VolumeX } from 'lucide-svelte'
   import type { SystemInfo } from '../types'
 
   interface Props {
@@ -17,6 +18,7 @@
   let videoEl = $state<HTMLVideoElement | null>(null)
   let status = $state<'loading' | 'playing' | 'error' | 'idle'>('idle')
   let errorMsg = $state('')
+  let muted = $state(true)
 
   let hlsInstance: Hls | null = null
   let rtcPeer: RTCPeerConnection | null = null
@@ -50,6 +52,7 @@
     if (!videoEl) return
     stopAll()
     status = 'loading'
+    muted = true
     try {
       const pc = new RTCPeerConnection({
         iceServers: [{ urls: 'stun:stun.l.google.com:19302' }],
@@ -65,6 +68,7 @@
       pc.ontrack = e => {
         if (e.streams[0] && videoEl && !stale()) {
           videoEl.srcObject = e.streams[0]
+          videoEl.muted = true
           videoEl.play().catch(() => {})
           status = 'playing'
         }
@@ -125,6 +129,7 @@
     if (!videoEl) return
     stopAll()
     status = 'loading'
+    muted = true
     if (Hls.isSupported()) {
       const hlsConfig: Partial<Hls['config']> = { enableWorker: false }
       if (username && streamToken) {
@@ -138,6 +143,7 @@
       hls.loadSource(hlsUrl)
       hls.attachMedia(videoEl)
       hls.on(Hls.Events.MANIFEST_PARSED, () => {
+        videoEl!.muted = true
         videoEl?.play().catch(() => {})
         status = 'playing'
       })
@@ -153,6 +159,7 @@
         ? `http://${username}:${streamToken}@${resolvedHost}:${info.hlsPort}/${streamName}/index.m3u8`
         : hlsUrl
       videoEl.src = safariUrl
+      videoEl.muted = true
       videoEl.play().then(() => status = 'playing').catch(e => {
         errorMsg = e.message; status = 'error'
       })
@@ -173,6 +180,14 @@
     } else {
       await startHLS()
     }
+  }
+
+  function toggleMute() {
+    if (!videoEl) return
+    // Setting muted=false in a click handler is a user gesture — this properly
+    // activates the browser's AudioContext so audio plays after autoplay-muted start.
+    muted = !muted
+    videoEl.muted = muted
   }
 
   function switchFormat(f: Format) {
@@ -205,14 +220,13 @@
   </div>
 
   <!-- Video element -->
-  <div class="relative bg-black rounded-xl overflow-hidden aspect-video">
+  <div class="relative bg-black rounded-xl overflow-hidden aspect-video group">
     <!-- svelte-ignore a11y_media_has_caption -->
     <video
       bind:this={videoEl}
       class="w-full h-full object-contain"
       controls
       playsinline
-      muted
     ></video>
 
     {#if status === 'loading'}
@@ -230,6 +244,21 @@
           <button onclick={start} class="mt-3 btn-primary text-xs">Retry</button>
         </div>
       </div>
+    {:else if status === 'playing'}
+      <!-- Mute toggle — visible on hover or when muted -->
+      <button
+        onclick={toggleMute}
+        class="absolute top-2 right-2 p-1.5 rounded-full bg-black/50 text-white
+               transition-opacity
+               {muted ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}"
+        title={muted ? $_('player.unmute') : $_('player.mute')}
+      >
+        {#if muted}
+          <VolumeX class="w-4 h-4" />
+        {:else}
+          <Volume2 class="w-4 h-4" />
+        {/if}
+      </button>
     {/if}
   </div>
 </div>

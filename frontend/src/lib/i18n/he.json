@@ -71,7 +71,9 @@
     "loading": "טוען זרם...",
     "error": "הזרם אינו זמין",
     "not_ready": "הזרם עדיין לא מוכן",
-    "switch_format": "החלף פורמט"
+    "switch_format": "החלף פורמט",
+    "mute": "השתק",
+    "unmute": "בטל השתקה"
   },
   "users": {
     "title": "משתמשים",
