@@ -41,6 +41,7 @@ export interface StreamURLs {
   hls: string
   webrtc: string
   rtmp: string
+  publishRtmp?: string
   srt?: string
   streamToken?: string
   username?: string

@@ -31,6 +31,7 @@ type streamURLsResponse struct {
 	HLS             string `json:"hls"`
 	WebRTC          string `json:"webrtc"`
 	RTMP            string `json:"rtmp"`
+	PublishRTMP     string `json:"publishRtmp,omitempty"` // slug-authenticated publish URL (no username/password)
 	SRT             string `json:"srt,omitempty"`
 	StreamToken     string `json:"streamToken,omitempty"`
 	Username        string `json:"username,omitempty"`
@@ -159,6 +160,14 @@ func (s *Server) handleStreamURLs(w http.ResponseWriter, r *http.Request) {
 		rtmpURL = fmt.Sprintf("rtmp://%s%s:%d/%s", userinfo, host, rtmpPort, name)
 	}
 
+	// Slug-based publish URL: no username/password, simpler for OBS/encoders.
+	// In OBS: Server = "rtmp://host:port/", Stream Key = "streamname?token=slug"
+	publishRTMP := ""
+	if streamToken != "" {
+		slug := dbpkg.PublishSlug(streamToken)
+		publishRTMP = fmt.Sprintf("rtmp://%s:%d/%s?token=%s", host, rtmpPort, name, slug)
+	}
+
 	srtStreamID := "publish:" + name
 	if streamToken != "" {
 		srtStreamID = fmt.Sprintf("publish:%s:%s:%s", name, user.Username, streamToken)
@@ -178,6 +187,7 @@ func (s *Server) handleStreamURLs(w http.ResponseWriter, r *http.Request) {
 		HLS:             hlsURL,
 		WebRTC:          fmt.Sprintf("%s://%s:%d/%s", sc, host, webrtcPort, name),
 		RTMP:            rtmpURL,
+		PublishRTMP:     publishRTMP,
 		SRT:             srtURL,
 		StreamToken:     streamToken,
 		Username:        user.Username,

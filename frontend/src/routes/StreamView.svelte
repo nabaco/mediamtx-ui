@@ -52,7 +52,7 @@
 
   const publishEntries = $derived(urls?.isPublishStream ? [
     { key: 'pub_rtsp', label: $_('stream_urls.publish_rtsp'), value: urls.rtsp },
-    { key: 'pub_rtmp', label: $_('stream_urls.publish_rtmp'), value: urls.rtmp },
+    { key: 'pub_rtmp', label: $_('stream_urls.publish_rtmp'), value: urls.publishRtmp ?? urls.rtmp },
     { key: 'pub_srt',  label: $_('stream_urls.publish_srt'),  value: urls.srt ?? '' },
   ].filter(e => e.value) : [])
 </script>

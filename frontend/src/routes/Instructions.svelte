@@ -156,9 +156,10 @@
         <p class="text-sm text-slate-600 mt-1">To push a stream from OBS to this server (Settings → Stream):</p>
         <div class="bg-slate-950 rounded-lg px-4 py-3 font-mono text-sm">
           <div class="text-slate-400">Service: Custom</div>
-          <div class="text-green-300">Server: rtmp://{host}:{rtmpPort}</div>
-          <div class="text-green-300">Stream Key: {'{'}{$_('streams.name').toLowerCase()}{'}'}</div>
+          <div class="text-green-300">Server: rtmp://{host}:{rtmpPort}/</div>
+          <div class="text-green-300">Stream Key: {'{'}{$_('streams.name').toLowerCase()}{'}'}?token=your-token-slug</div>
         </div>
+        <p class="text-xs text-slate-400">Copy the ready-made RTMP publish URL from the stream detail page — it includes your personal token slug automatically.</p>
       </div>
     </div>
 

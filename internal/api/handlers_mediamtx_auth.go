@@ -90,6 +90,22 @@ func (s *Server) checkMediaMTXAuth(req mediamtxAuthRequest) (allowed bool, resol
 		req.Password = req.Token
 	}
 
+	// Slug-based anonymous publish: RTMP/SRT clients that can't embed credentials
+	// use ?token={slug} in the query string instead of user:pass@ in the URL.
+	if req.Action == "publish" && req.User == "" {
+		if slug := slugFromQuery(req.Query); slug != "" {
+			if user, err := dbpkg.GetUserByPublishSlug(s.db, slug); err == nil {
+				if user.Role == dbpkg.RoleAdmin {
+					return true, user.Username
+				}
+				if ok, _ := dbpkg.CheckAccess(s.db, user.ID, req.Path, dbpkg.ACLActionPublish); ok {
+					return true, user.Username
+				}
+				return false, user.Username
+			}
+		}
+	}
+
 	if req.User == "" {
 		return false, "anonymous"
 	}
@@ -121,4 +137,13 @@ func (s *Server) checkMediaMTXAuth(req mediamtxAuthRequest) (allowed bool, resol
 	}
 
 	return true, req.User
+}
+
+// slugFromQuery extracts the ?token= value from a mediamtx query string.
+func slugFromQuery(query string) string {
+	q, err := url.ParseQuery(query)
+	if err != nil {
+		return ""
+	}
+	return q.Get("token")
 }
