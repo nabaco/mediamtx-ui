@@ -1,7 +1,9 @@
 package api
 
 import (
-	"log"
+	"bytes"
+	"io"
+	"log/slog"
 	"net/http"
 	"net/url"
 
@@ -31,15 +33,18 @@ type mediamtxAuthRequest struct {
 }
 
 func (s *Server) handleMediaMTXAuth(w http.ResponseWriter, r *http.Request) {
+	body, _ := io.ReadAll(r.Body)
+	r.Body = io.NopCloser(bytes.NewReader(body))
+
 	var req mediamtxAuthRequest
 	if err := decodeJSON(r, &req); err != nil {
 		http.Error(w, "bad request", http.StatusBadRequest)
 		return
 	}
 
-	// DEBUG: log the request
-	log.Printf("DEBUG auth: user=%q pass=%q path=%q action=%q protocol=%q query=%q",
-		req.User, req.Password, req.Path, req.Action, req.Protocol, req.Query)
+	slog.Debug("mediamtx auth request", "raw", string(body),
+		"user", req.User, "path", req.Path, "action", req.Action,
+		"protocol", req.Protocol, "query", req.Query)
 
 	allowed, username := s.checkMediaMTXAuth(req)
 
