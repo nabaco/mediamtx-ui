@@ -5,6 +5,7 @@ import (
 	"net"
 	"net/http"
 	"net/url"
+	"strconv"
 
 	"github.com/go-chi/chi/v5"
 
@@ -137,18 +138,32 @@ func (s *Server) handleStreamURLs(w http.ResponseWriter, r *http.Request) {
 		userinfo = url.UserPassword(user.Username, streamToken).String() + "@"
 	}
 
+	// Use live mediamtx port config; fall back to app config defaults.
+	rtspPort := s.cfg.MediaMTX.RTSPPort
+	hlsPort := s.cfg.MediaMTX.HLSPort
+	webrtcPort := s.cfg.MediaMTX.WebRTCPort
+	rtmpPort := s.cfg.MediaMTX.RTMPPort
+	srtPort := s.cfg.MediaMTX.SRTPort
+	if globalCfg, err := s.mtx.GetGlobalConfig(); err == nil {
+		rtspPort = portFromAddr(globalCfg.RTSPAddress, rtspPort)
+		hlsPort = portFromAddr(globalCfg.HLSAddress, hlsPort)
+		webrtcPort = portFromAddr(globalCfg.WebRTCAddress, webrtcPort)
+		rtmpPort = portFromAddr(globalCfg.RTMPAddress, rtmpPort)
+		srtPort = portFromAddr(globalCfg.SRTAddress, srtPort)
+	}
+
 	sc := schemeFor(r)
-	hlsURL := fmt.Sprintf("%s://%s%s:%d/%s/index.m3u8", sc, userinfo, host, s.cfg.MediaMTX.HLSPort, name)
-	rtmpURL := fmt.Sprintf("rtmp://%s:%d/%s", host, s.cfg.MediaMTX.RTMPPort, name)
+	hlsURL := fmt.Sprintf("%s://%s%s:%d/%s/index.m3u8", sc, userinfo, host, hlsPort, name)
+	rtmpURL := fmt.Sprintf("rtmp://%s:%d/%s", host, rtmpPort, name)
 	if streamToken != "" {
-		rtmpURL = fmt.Sprintf("rtmp://%s%s:%d/%s", userinfo, host, s.cfg.MediaMTX.RTMPPort, name)
+		rtmpURL = fmt.Sprintf("rtmp://%s%s:%d/%s", userinfo, host, rtmpPort, name)
 	}
 
 	srtStreamID := "publish:" + name
 	if streamToken != "" {
 		srtStreamID = fmt.Sprintf("publish:%s:%s:%s", name, user.Username, streamToken)
 	}
-	srtURL := fmt.Sprintf("srt://%s:%d?streamid=%s", host, s.cfg.MediaMTX.SRTPort, srtStreamID)
+	srtURL := fmt.Sprintf("srt://%s:%d?streamid=%s", host, srtPort, srtStreamID)
 
 	// Assume publish stream unless the config explicitly shows a pull source.
 	// "publisher" is mediamtx's explicit keyword for push-only paths; empty
@@ -159,9 +174,9 @@ func (s *Server) handleStreamURLs(w http.ResponseWriter, r *http.Request) {
 	}
 
 	jsonOK(w, streamURLsResponse{
-		RTSP:            fmt.Sprintf("rtsp://%s%s:%d/%s", userinfo, host, s.cfg.MediaMTX.RTSPPort, name),
+		RTSP:            fmt.Sprintf("rtsp://%s%s:%d/%s", userinfo, host, rtspPort, name),
 		HLS:             hlsURL,
-		WebRTC:          fmt.Sprintf("%s://%s:%d/%s", sc, host, s.cfg.MediaMTX.WebRTCPort, name),
+		WebRTC:          fmt.Sprintf("%s://%s:%d/%s", sc, host, webrtcPort, name),
 		RTMP:            rtmpURL,
 		SRT:             srtURL,
 		StreamToken:     streamToken,
@@ -290,4 +305,18 @@ func toStreamResponse(p mediamtx.PathItem, metaMap map[string]*dbpkg.StreamMeta)
 		sr.Description = m.Description
 	}
 	return sr
+}
+
+// portFromAddr parses the port from a mediamtx address like ":8554" or
+// "0.0.0.0:1936". Returns fallback if parsing fails.
+func portFromAddr(addr string, fallback int) int {
+	_, portStr, err := net.SplitHostPort(addr)
+	if err != nil {
+		return fallback
+	}
+	p, err := strconv.Atoi(portStr)
+	if err != nil || p <= 0 {
+		return fallback
+	}
+	return p
 }
