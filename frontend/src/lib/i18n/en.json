@@ -61,7 +61,8 @@
     "publish_title": "Publish to this Stream",
     "publish_hint": "Push your stream to this path using OBS, FFmpeg, or any RTSP/RTMP source",
     "publish_rtsp": "RTSP (push)",
-    "publish_rtmp": "RTMP (push)"
+    "publish_rtmp": "RTMP (push)",
+    "publish_srt": "SRT (push)"
   },
   "player": {
     "format": "Format",

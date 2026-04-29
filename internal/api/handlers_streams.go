@@ -30,6 +30,7 @@ type streamURLsResponse struct {
 	HLS             string `json:"hls"`
 	WebRTC          string `json:"webrtc"`
 	RTMP            string `json:"rtmp"`
+	SRT             string `json:"srt,omitempty"`
 	StreamToken     string `json:"streamToken,omitempty"`
 	Username        string `json:"username,omitempty"`
 	IsPublishStream bool   `json:"isPublishStream"`
@@ -143,6 +144,12 @@ func (s *Server) handleStreamURLs(w http.ResponseWriter, r *http.Request) {
 		rtmpURL = fmt.Sprintf("rtmp://%s%s:%d/%s", userinfo, host, s.cfg.MediaMTX.RTMPPort, name)
 	}
 
+	srtStreamID := "publish:" + name
+	if streamToken != "" {
+		srtStreamID = fmt.Sprintf("publish:%s:%s:%s", name, user.Username, streamToken)
+	}
+	srtURL := fmt.Sprintf("srt://%s:%d?streamid=%s", host, s.cfg.MediaMTX.SRTPort, srtStreamID)
+
 	isPublish := false
 	if cfg, err := s.mtx.GetConfigPath(name); err == nil {
 		isPublish = cfg.Source == ""
@@ -153,6 +160,7 @@ func (s *Server) handleStreamURLs(w http.ResponseWriter, r *http.Request) {
 		HLS:             hlsURL,
 		WebRTC:          fmt.Sprintf("%s://%s:%d/%s", sc, host, s.cfg.MediaMTX.WebRTCPort, name),
 		RTMP:            rtmpURL,
+		SRT:             srtURL,
 		StreamToken:     streamToken,
 		Username:        user.Username,
 		IsPublishStream: isPublish,

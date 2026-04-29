@@ -36,6 +36,7 @@ type MediaMTXConfig struct {
 	HLSPort    int
 	WebRTCPort int
 	RTMPPort   int
+	SRTPort    int
 	// PublicHost is the hostname/IP that end users can reach mediamtx on.
 	// Defaults to the host part of APIAddress.
 	PublicHost string
@@ -84,6 +85,7 @@ func Load() (*Config, error) {
 	v.SetDefault("mediamtx.hls_port", 8888)
 	v.SetDefault("mediamtx.webrtc_port", 8889)
 	v.SetDefault("mediamtx.rtmp_port", 1935)
+	v.SetDefault("mediamtx.srt_port", 8890)
 	v.SetDefault("mediamtx.public_host", "")
 	v.SetDefault("mediamtx.config_path", "")
 
@@ -125,6 +127,7 @@ func Load() (*Config, error) {
 			HLSPort:    v.GetInt("mediamtx.hls_port"),
 			WebRTCPort: v.GetInt("mediamtx.webrtc_port"),
 			RTMPPort:   v.GetInt("mediamtx.rtmp_port"),
+			SRTPort:    v.GetInt("mediamtx.srt_port"),
 			PublicHost: v.GetString("mediamtx.public_host"),
 			ConfigPath: v.GetString("mediamtx.config_path"),
 		},

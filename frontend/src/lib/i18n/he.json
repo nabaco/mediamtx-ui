@@ -61,7 +61,8 @@
     "publish_title": "שידור לזרם זה",
     "publish_hint": "דחוף את הזרם שלך לנתיב זה באמצעות OBS, FFmpeg או כל מקור RTSP/RTMP",
     "publish_rtsp": "RTSP (דחיפה)",
-    "publish_rtmp": "RTMP (דחיפה)"
+    "publish_rtmp": "RTMP (דחיפה)",
+    "publish_srt": "SRT (דחיפה)"
   },
   "player": {
     "format": "פורמט",
