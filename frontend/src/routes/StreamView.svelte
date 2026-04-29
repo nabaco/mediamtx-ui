@@ -49,6 +49,11 @@
     { key: 'webrtc', label: $_('stream_urls.webrtc'), value: urls.webrtc },
     { key: 'rtmp', label: $_('stream_urls.rtmp'), value: urls.rtmp },
   ].filter(e => e.value) : [])
+
+  const publishEntries = $derived(urls?.isPublishStream ? [
+    { key: 'pub_rtsp', label: $_('stream_urls.publish_rtsp'), value: urls.rtsp },
+    { key: 'pub_rtmp', label: $_('stream_urls.publish_rtmp'), value: urls.rtmp },
+  ].filter(e => e.value) : [])
 </script>
 
 <div class="flex flex-col gap-6">
@@ -103,6 +108,37 @@
             <span class="font-medium text-slate-600 truncate">{stream.source || '—'}</span>
           </div>
         </div>
+
+        <!-- Publish URLs (publish streams only) -->
+        {#if publishEntries.length > 0}
+          <div class="card p-4 border-indigo-100">
+            <h3 class="text-sm font-semibold text-slate-700 mb-1">{$_('stream_urls.publish_title')}</h3>
+            <p class="text-xs text-slate-400 mb-3">{$_('stream_urls.publish_hint')}</p>
+            <div class="flex flex-col gap-2">
+              {#each publishEntries as entry (entry.key)}
+                <div>
+                  <p class="text-xs text-slate-400 mb-1">{entry.label}</p>
+                  <div class="flex items-center gap-1.5">
+                    <code class="flex-1 text-xs bg-indigo-50 border border-indigo-100 rounded px-2 py-1.5 truncate font-mono">
+                      {entry.value}
+                    </code>
+                    <button
+                      onclick={() => copyURL(entry.key, entry.value)}
+                      class="btn-secondary p-1.5 shrink-0"
+                      title={$_('common.copy')}
+                    >
+                      {#if copiedKey === entry.key}
+                        <Check class="w-3.5 h-3.5 text-green-600" />
+                      {:else}
+                        <Copy class="w-3.5 h-3.5" />
+                      {/if}
+                    </button>
+                  </div>
+                </div>
+              {/each}
+            </div>
+          </div>
+        {/if}
 
         <!-- Stream URLs -->
         <div class="card p-4">

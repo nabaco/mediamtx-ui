@@ -57,7 +57,11 @@
     "rtmp": "RTMP",
     "copied": "Copied!",
     "open_vlc": "Open in VLC",
-    "stream_token_needed": "Generate a stream token for this user first"
+    "stream_token_needed": "Generate a stream token for this user first",
+    "publish_title": "Publish to this Stream",
+    "publish_hint": "Push your stream to this path using OBS, FFmpeg, or any RTSP/RTMP source",
+    "publish_rtsp": "RTSP (push)",
+    "publish_rtmp": "RTMP (push)"
   },
   "player": {
     "format": "Format",

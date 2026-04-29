@@ -25,13 +25,14 @@ type streamResponse struct {
 }
 
 type streamURLsResponse struct {
-	RTSP        string `json:"rtsp"`
-	RTSPS       string `json:"rtsps,omitempty"`
-	HLS         string `json:"hls"`
-	WebRTC      string `json:"webrtc"`
-	RTMP        string `json:"rtmp"`
-	StreamToken string `json:"streamToken,omitempty"`
-	Username    string `json:"username,omitempty"`
+	RTSP            string `json:"rtsp"`
+	RTSPS           string `json:"rtsps,omitempty"`
+	HLS             string `json:"hls"`
+	WebRTC          string `json:"webrtc"`
+	RTMP            string `json:"rtmp"`
+	StreamToken     string `json:"streamToken,omitempty"`
+	Username        string `json:"username,omitempty"`
+	IsPublishStream bool   `json:"isPublishStream"`
 }
 
 type createStreamRequest struct {
@@ -142,13 +143,19 @@ func (s *Server) handleStreamURLs(w http.ResponseWriter, r *http.Request) {
 		rtmpURL = fmt.Sprintf("rtmp://%s%s:%d/%s", userinfo, host, s.cfg.MediaMTX.RTMPPort, name)
 	}
 
+	isPublish := false
+	if cfg, err := s.mtx.GetConfigPath(name); err == nil {
+		isPublish = cfg.Source == ""
+	}
+
 	jsonOK(w, streamURLsResponse{
-		RTSP:        fmt.Sprintf("rtsp://%s%s:%d/%s", userinfo, host, s.cfg.MediaMTX.RTSPPort, name),
-		HLS:         hlsURL,
-		WebRTC:      fmt.Sprintf("%s://%s:%d/%s", sc, host, s.cfg.MediaMTX.WebRTCPort, name),
-		RTMP:        rtmpURL,
-		StreamToken: streamToken,
-		Username:    user.Username,
+		RTSP:            fmt.Sprintf("rtsp://%s%s:%d/%s", userinfo, host, s.cfg.MediaMTX.RTSPPort, name),
+		HLS:             hlsURL,
+		WebRTC:          fmt.Sprintf("%s://%s:%d/%s", sc, host, s.cfg.MediaMTX.WebRTCPort, name),
+		RTMP:            rtmpURL,
+		StreamToken:     streamToken,
+		Username:        user.Username,
+		IsPublishStream: isPublish,
 	})
 }
 

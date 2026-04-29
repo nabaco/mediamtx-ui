@@ -57,7 +57,11 @@
     "rtmp": "RTMP",
     "copied": "הועתק!",
     "open_vlc": "פתח ב-VLC",
-    "stream_token_needed": "יש ליצור אסימון זרם עבור משתמש זה תחילה"
+    "stream_token_needed": "יש ליצור אסימון זרם עבור משתמש זה תחילה",
+    "publish_title": "שידור לזרם זה",
+    "publish_hint": "דחוף את הזרם שלך לנתיב זה באמצעות OBS, FFmpeg או כל מקור RTSP/RTMP",
+    "publish_rtsp": "RTSP (דחיפה)",
+    "publish_rtmp": "RTMP (דחיפה)"
   },
   "player": {
     "format": "פורמט",

@@ -43,6 +43,7 @@ export interface StreamURLs {
   rtmp: string
   streamToken?: string
   username?: string
+  isPublishStream?: boolean
 }
 
 export interface SystemInfo {
