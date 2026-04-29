@@ -151,11 +151,11 @@ func (s *Server) handleStreamURLs(w http.ResponseWriter, r *http.Request) {
 	srtURL := fmt.Sprintf("srt://%s:%d?streamid=%s", host, s.cfg.MediaMTX.SRTPort, srtStreamID)
 
 	// Assume publish stream unless the config explicitly shows a pull source.
-	// GetConfigPath fails for paths defined in mediamtx.yml (not via API), so
-	// we default to true and only override when we have definitive config data.
+	// "publisher" is mediamtx's explicit keyword for push-only paths; empty
+	// string means the same when no source is set via the API.
 	isPublish := true
 	if cfg, err := s.mtx.GetConfigPath(name); err == nil {
-		isPublish = cfg.Source == ""
+		isPublish = cfg.Source == "" || cfg.Source == "publisher"
 	}
 
 	jsonOK(w, streamURLsResponse{
