@@ -71,9 +71,7 @@
     "loading": "Loading stream...",
     "error": "Stream unavailable",
     "not_ready": "Stream not ready yet",
-    "switch_format": "Switch Format",
-    "mute": "Mute",
-    "unmute": "Unmute"
+    "switch_format": "Switch Format"
   },
   "users": {
     "title": "Users",

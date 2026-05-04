@@ -2,7 +2,6 @@
   import { _ } from 'svelte-i18n'
   import Hls from 'hls.js'
   import { onDestroy } from 'svelte'
-  import { Volume2, VolumeX } from 'lucide-svelte'
   import type { SystemInfo } from '../types'
 
   // Factory returns a hls.js pLoader that rewrites absolute URLs in manifests to use
@@ -47,7 +46,6 @@
   let videoEl = $state<HTMLVideoElement | null>(null)
   let status = $state<'loading' | 'playing' | 'error' | 'idle'>('idle')
   let errorMsg = $state('')
-  let muted = $state(true)
 
   let hlsInstance: Hls | null = null
   let rtcPeer: RTCPeerConnection | null = null
@@ -81,7 +79,6 @@
     if (!videoEl) return
     stopAll()
     status = 'loading'
-    muted = true
     try {
       const pc = new RTCPeerConnection({
         iceServers: [{ urls: 'stun:stun.l.google.com:19302' }],
@@ -94,9 +91,18 @@
       pc.addTransceiver('video', { direction: 'recvonly' })
       pc.addTransceiver('audio', { direction: 'recvonly' })
 
+      // Build a local MediaStream and add each incoming track to it.
+      // Do NOT rely on e.streams[0]: mediamtx WHEP may send audio tracks without
+      // a stream association, causing e.streams[0] to be undefined and audio to be dropped.
+      const remoteStream = new MediaStream()
+      videoEl.srcObject = remoteStream
+      let playStarted = false
+
       pc.ontrack = e => {
-        if (e.streams[0] && videoEl && !stale()) {
-          videoEl.srcObject = e.streams[0]
+        if (stale() || !videoEl) return
+        remoteStream.addTrack(e.track)
+        if (!playStarted) {
+          playStarted = true
           videoEl.muted = true
           videoEl.play().catch(() => {})
           status = 'playing'
@@ -158,7 +164,6 @@
     if (!videoEl) return
     stopAll()
     status = 'loading'
-    muted = true
     if (Hls.isSupported()) {
       const hlsConfig: any = {
         enableWorker: false,
@@ -212,14 +217,6 @@
     } else {
       await startHLS()
     }
-  }
-
-  function toggleMute() {
-    if (!videoEl) return
-    // Setting muted=false in a click handler is a user gesture — this properly
-    // activates the browser's AudioContext so audio plays after autoplay-muted start.
-    muted = !muted
-    videoEl.muted = muted
   }
 
   function switchFormat(f: Format) {
@@ -276,21 +273,6 @@
           <button onclick={start} class="mt-3 btn-primary text-xs">Retry</button>
         </div>
       </div>
-    {:else if status === 'playing'}
-      <!-- Mute toggle — visible on hover or when muted -->
-      <button
-        onclick={toggleMute}
-        class="absolute top-2 right-2 p-1.5 rounded-full bg-black/50 text-white
-               transition-opacity
-               {muted ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}"
-        title={muted ? $_('player.unmute') : $_('player.mute')}
-      >
-        {#if muted}
-          <VolumeX class="w-4 h-4" />
-        {:else}
-          <Volume2 class="w-4 h-4" />
-        {/if}
-      </button>
     {/if}
   </div>
 </div>
