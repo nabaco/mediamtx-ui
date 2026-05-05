@@ -13,12 +13,12 @@
   let showAddForm = $state(false)
   let showDeleteConfirm = $state<string | null>(null)
 
-  let addForm = $state({ name: '', description: '', source: '', sourceOnDemand: false, record: false, maxReaders: 0 })
+  let addForm = $state({ name: '', description: '', source: '', isPublisher: false, sourceOnDemand: false, record: false, maxReaders: 0 })
   let addSaving = $state(false)
 
   // Inline edit
   let expandedName = $state<string | null>(null)
-  let expandedForm = $state({ description: '', source: '', sourceOnDemand: false, record: false, maxReaders: 0 })
+  let expandedForm = $state({ description: '', source: '', isPublisher: false, sourceOnDemand: false, record: false, maxReaders: 0 })
   let expandedLoading = $state(false)
   let expandedSaving = $state(false)
 
@@ -53,15 +53,17 @@
     const meta = list.find(s => s.name === name)
     try {
       const cfg = await streamsApi.config(name)
+      const src = cfg.source ?? ''
       expandedForm = {
         description: meta?.description ?? '',
-        source: cfg.source ?? '',
+        source: src === 'publisher' ? '' : src,
+        isPublisher: !src || src === 'publisher',
         sourceOnDemand: cfg.sourceOnDemand ?? false,
         record: cfg.record ?? false,
         maxReaders: cfg.maxReaders ?? 0,
       }
     } catch {
-      expandedForm = { description: meta?.description ?? '', source: '', sourceOnDemand: false, record: false, maxReaders: 0 }
+      expandedForm = { description: meta?.description ?? '', source: '', isPublisher: true, sourceOnDemand: false, record: false, maxReaders: 0 }
     } finally {
       expandedLoading = false
     }
@@ -71,7 +73,8 @@
     if (!expandedName) return
     expandedSaving = true
     try {
-      await streamsApi.update(expandedName, expandedForm)
+      const { isPublisher, ...fields } = expandedForm
+      await streamsApi.update(expandedName, { ...fields, source: isPublisher ? '' : fields.source })
       addToast('success', $_('streams.updated'))
       expandedName = null
       await load()
@@ -85,10 +88,11 @@
   async function createStream() {
     addSaving = true
     try {
-      await streamsApi.create(addForm)
+      const { isPublisher, ...fields } = addForm
+      await streamsApi.create({ ...fields, source: isPublisher ? '' : fields.source })
       addToast('success', $_('streams.created'))
       showAddForm = false
-      addForm = { name: '', description: '', source: '', sourceOnDemand: false, record: false, maxReaders: 0 }
+      addForm = { name: '', description: '', source: '', isPublisher: false, sourceOnDemand: false, record: false, maxReaders: 0 }
       await load()
     } catch (e: any) {
       addToast('error', e.message)
@@ -271,8 +275,17 @@
                           <input id="ex-desc-{s.name}" class="input" bind:value={expandedForm.description} />
                         </div>
                         <div>
-                          <label class="label text-xs" for="ex-src-{s.name}">{$_('streams.source')}</label>
-                          <input id="ex-src-{s.name}" class="input" bind:value={expandedForm.source} placeholder={$_('streams.source_placeholder')} />
+                          <div class="flex items-center justify-between mb-1">
+                            <label class="label text-xs mb-0" for="ex-src-{s.name}">{$_('streams.source')}</label>
+                            <label class="flex items-center gap-1.5 text-xs cursor-pointer text-slate-500">
+                              <input type="checkbox" bind:checked={expandedForm.isPublisher}
+                                onchange={() => { if (expandedForm.isPublisher) expandedForm.source = '' }} />
+                              {$_('streams.publisher')}
+                            </label>
+                          </div>
+                          <input id="ex-src-{s.name}" class="input" bind:value={expandedForm.source}
+                            placeholder={$_('streams.source_placeholder')}
+                            disabled={expandedForm.isPublisher} />
                         </div>
                         <div>
                           <label class="label text-xs" for="ex-max-{s.name}">{$_('streams.max_readers')}</label>
@@ -432,8 +445,17 @@
           <input id="stream-desc" class="input" bind:value={addForm.description} />
         </div>
         <div>
-          <label class="label" for="stream-source">{$_('streams.source')}</label>
-          <input id="stream-source" class="input" bind:value={addForm.source} placeholder={$_('streams.source_placeholder')} />
+          <div class="flex items-center justify-between mb-1">
+            <label class="label mb-0" for="stream-source">{$_('streams.source')}</label>
+            <label class="flex items-center gap-1.5 text-xs cursor-pointer text-slate-500">
+              <input type="checkbox" bind:checked={addForm.isPublisher}
+                onchange={() => { if (addForm.isPublisher) addForm.source = '' }} />
+              {$_('streams.publisher')}
+            </label>
+          </div>
+          <input id="stream-source" class="input" bind:value={addForm.source}
+            placeholder={$_('streams.source_placeholder')}
+            disabled={addForm.isPublisher} />
         </div>
         <div>
           <label class="label" for="stream-maxreaders">{$_('streams.max_readers')}</label>

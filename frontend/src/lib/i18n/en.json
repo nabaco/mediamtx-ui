@@ -50,6 +50,7 @@
     "deleted": "Stream deleted",
     "copy_urls": "Copy URLs",
     "assign_access": "Assign Access",
+    "publisher": "Publisher (push)",
     "auth_note": "Authenticate with username:password in your client."
   },
   "stream_urls": {
