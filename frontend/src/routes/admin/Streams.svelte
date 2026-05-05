@@ -74,7 +74,7 @@
     expandedSaving = true
     try {
       const { isPublisher, ...fields } = expandedForm
-      await streamsApi.update(expandedName, { ...fields, source: isPublisher ? '' : fields.source })
+      await streamsApi.update(expandedName, { ...fields, source: isPublisher ? 'publisher' : fields.source })
       addToast('success', $_('streams.updated'))
       expandedName = null
       await load()
@@ -89,7 +89,7 @@
     addSaving = true
     try {
       const { isPublisher, ...fields } = addForm
-      await streamsApi.create({ ...fields, source: isPublisher ? '' : fields.source })
+      await streamsApi.create({ ...fields, source: isPublisher ? 'publisher' : fields.source })
       addToast('success', $_('streams.created'))
       showAddForm = false
       addForm = { name: '', description: '', source: '', isPublisher: false, sourceOnDemand: false, record: false, maxReaders: 0 }

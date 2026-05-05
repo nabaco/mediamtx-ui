@@ -41,34 +41,77 @@
   }
   let { streamName, info }: Props = $props()
 
-  type Format = 'webrtc' | 'hls'
-  let format = $state<Format>('webrtc')
+  type Mode = 'auto' | 'webrtc' | 'hls'
+  let mode = $state<Mode>('auto')
+  let autoFallback = $state(false)
   let videoEl = $state<HTMLVideoElement | null>(null)
   let status = $state<'loading' | 'playing' | 'error' | 'idle'>('idle')
   let errorMsg = $state('')
 
   let hlsInstance: Hls | null = null
   let rtcPeer: RTCPeerConnection | null = null
+  let qualityTimer: ReturnType<typeof setInterval> | null = null
+  let lastPktReceived = 0
+  let lastPktLost = 0
+  let lastVideoTime = 0
+  let frozenTicks = 0
 
-  // If the server returns localhost/127.0.0.1, use the browser's hostname instead
-  // so stream URLs work when accessing the UI from a remote machine.
   const resolvedHost = $derived(
     (info.mediamtxHost === 'localhost' || info.mediamtxHost === '127.0.0.1')
       ? window.location.hostname
       : info.mediamtxHost
   )
-
-  // Match the page scheme so browsers don't block mixed content when served over HTTPS.
   const scheme = $derived(window.location.protocol === 'https:' ? 'https' : 'http')
+  const hlsUrl = $derived(`${scheme}://${resolvedHost}:${info.hlsPort}/${streamName}/index.m3u8`)
+  const webrtcUrl = $derived(`${scheme}://${resolvedHost}:${info.webrtcPort}/${streamName}`)
 
-  const hlsUrl = $derived(
-    `${scheme}://${resolvedHost}:${info.hlsPort}/${streamName}/index.m3u8`
-  )
-  const webrtcUrl = $derived(
-    `${scheme}://${resolvedHost}:${info.webrtcPort}/${streamName}`
-  )
+  function stopQualityMonitor() {
+    if (qualityTimer) { clearInterval(qualityTimer); qualityTimer = null }
+  }
+
+  function startQualityMonitor() {
+    stopQualityMonitor()
+    lastPktReceived = 0; lastPktLost = 0
+    lastVideoTime = videoEl?.currentTime ?? 0
+    frozenTicks = 0
+
+    qualityTimer = setInterval(async () => {
+      if (!rtcPeer || mode !== 'auto' || status !== 'playing') return
+
+      // Video freeze detection: if currentTime hasn't advanced for two ticks (10s), bail out
+      const ct = videoEl?.currentTime ?? 0
+      if (ct === lastVideoTime) {
+        if (++frozenTicks >= 2) { fallbackToHLS(); return }
+      } else {
+        frozenTicks = 0
+      }
+      lastVideoTime = ct
+
+      // Packet loss detection via WebRTC stats
+      try {
+        const stats = await rtcPeer!.getStats()
+        stats.forEach(report => {
+          if (report.type !== 'inbound-rtp' || report.kind !== 'video') return
+          const dr = report.packetsReceived - lastPktReceived
+          const dl = report.packetsLost - lastPktLost
+          lastPktReceived = report.packetsReceived
+          lastPktLost = report.packetsLost
+          const total = dr + dl
+          // Only act if we have a meaningful sample and >5% loss
+          if (total > 10 && dl / total > 0.05) fallbackToHLS()
+        })
+      } catch {}
+    }, 5000)
+  }
+
+  function fallbackToHLS() {
+    stopQualityMonitor()
+    autoFallback = true
+    startHLS()
+  }
 
   function stopAll() {
+    stopQualityMonitor()
     if (hlsInstance) { hlsInstance.destroy(); hlsInstance = null }
     if (rtcPeer) { rtcPeer.close(); rtcPeer = null }
     if (videoEl) { videoEl.srcObject = null; videoEl.src = '' }
@@ -84,16 +127,11 @@
         iceServers: [{ urls: 'stun:stun.l.google.com:19302' }],
       })
       rtcPeer = pc
-
-      // Helper: bail out silently if this pc was superseded by stopAll()
       const stale = () => pc.signalingState === 'closed'
 
       pc.addTransceiver('video', { direction: 'recvonly' })
       pc.addTransceiver('audio', { direction: 'recvonly' })
 
-      // Build a local MediaStream and add each incoming track to it.
-      // Do NOT rely on e.streams[0]: mediamtx WHEP may send audio tracks without
-      // a stream association, causing e.streams[0] to be undefined and audio to be dropped.
       const remoteStream = new MediaStream()
       videoEl.srcObject = remoteStream
       let playStarted = false
@@ -121,7 +159,6 @@
       if (stale()) return
       await pc.setLocalDescription(offer)
 
-      // Wait for ICE gathering to complete so all candidates are in the SDP
       await new Promise<void>(resolve => {
         if (pc.iceGatheringState === 'complete') { resolve(); return }
         const onStateChange = () => {
@@ -131,7 +168,6 @@
           }
         }
         pc.addEventListener('icegatheringstatechange', onStateChange)
-        // Safety timeout: send after 5s even if gathering isn't done
         setTimeout(resolve, 5000)
       })
 
@@ -195,7 +231,6 @@
         }
       })
     } else if (videoEl.canPlayType('application/vnd.apple.mpegurl')) {
-      // Safari native HLS
       videoEl.src = hlsUrl
       videoEl.muted = true
       videoEl.play().then(() => status = 'playing').catch(e => {
@@ -208,24 +243,27 @@
   }
 
   async function start() {
-    if (format === 'webrtc') {
-      await startWebRTC()
-      // Auto-fallback: if WebRTC fails, silently try HLS
-      if (status === 'error') {
-        format = 'hls'
-        await startHLS()
-      }
-    } else {
+    autoFallback = false
+    stopQualityMonitor()
+    if (mode === 'hls') {
       await startHLS()
+      return
+    }
+    // 'webrtc' or 'auto'
+    await startWebRTC()
+    if (status === 'error' && mode === 'auto') {
+      autoFallback = true
+      await startHLS()
+    } else if (status === 'playing' && mode === 'auto') {
+      startQualityMonitor()
     }
   }
 
-  function switchFormat(f: Format) {
-    format = f
+  function switchMode(m: Mode) {
+    mode = m
     start()
   }
 
-  // Auto-start when videoEl is available
   $effect(() => {
     if (videoEl) start()
     return () => stopAll()
@@ -235,18 +273,21 @@
 </script>
 
 <div class="flex flex-col gap-3">
-  <!-- Format switcher -->
-  <div class="flex items-center gap-2">
-    <span class="text-sm text-slate-500">{$_('player.format')}:</span>
-    {#each (['webrtc', 'hls'] as Format[]) as f}
+  <!-- Mode switcher -->
+  <div class="flex items-center gap-2 flex-wrap">
+    <span class="text-sm text-slate-500">{$_('player.quality')}:</span>
+    {#each (['auto', 'webrtc', 'hls'] as Mode[]) as m}
       <button
-        onclick={() => switchFormat(f)}
+        onclick={() => switchMode(m)}
         class="px-3 py-1 text-xs rounded-full font-medium transition-colors
-               {format === f ? 'bg-indigo-600 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}"
+               {mode === m ? 'bg-indigo-600 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}"
       >
-        {$_(`player.${f}`)}
+        {$_(`player.mode_${m}`)}
       </button>
     {/each}
+    {#if autoFallback}
+      <span class="text-xs text-amber-600 italic">{$_('player.auto_downgraded')}</span>
+    {/if}
   </div>
 
   <!-- Video element -->

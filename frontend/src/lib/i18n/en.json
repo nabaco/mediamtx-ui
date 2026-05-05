@@ -69,13 +69,14 @@
     "publish_srt": "SRT (push)"
   },
   "player": {
-    "format": "Format",
-    "webrtc": "WebRTC",
-    "hls": "HLS",
+    "quality": "Quality",
+    "mode_auto": "Auto",
+    "mode_webrtc": "Fast (WebRTC)",
+    "mode_hls": "Stable (HLS)",
+    "auto_downgraded": "switched to stable",
     "loading": "Loading stream...",
     "error": "Stream unavailable",
-    "not_ready": "Stream not ready yet",
-    "switch_format": "Switch Format"
+    "not_ready": "Stream not ready yet"
   },
   "users": {
     "title": "Users",

@@ -69,13 +69,14 @@
     "publish_srt": "SRT (דחיפה)"
   },
   "player": {
-    "format": "פורמט",
-    "webrtc": "WebRTC",
-    "hls": "HLS",
+    "quality": "איכות",
+    "mode_auto": "אוטומטי",
+    "mode_webrtc": "מהיר (WebRTC)",
+    "mode_hls": "יציב (HLS)",
+    "auto_downgraded": "עבר למצב יציב",
     "loading": "טוען זרם...",
     "error": "הזרם אינו זמין",
-    "not_ready": "הזרם עדיין לא מוכן",
-    "switch_format": "החלף פורמט"
+    "not_ready": "הזרם עדיין לא מוכן"
   },
   "users": {
     "title": "משתמשים",
