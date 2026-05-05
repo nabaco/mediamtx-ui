@@ -47,7 +47,10 @@
     "delete_confirm": "למחוק את הזרם \"{name}\"? לא ניתן לבטל פעולה זו.",
     "created": "הזרם נוצר",
     "updated": "הזרם עודכן",
-    "deleted": "הזרם נמחק"
+    "deleted": "הזרם נמחק",
+    "copy_urls": "העתק כתובות",
+    "assign_access": "הגדר גישה",
+    "auth_note": "התחבר עם שם משתמש וסיסמה בלקוח שלך."
   },
   "stream_urls": {
     "title": "כתובות הזרם",
@@ -147,8 +150,9 @@
     "subject_type": "סוג",
     "type_user": "משתמש",
     "type_group": "קבוצה",
-    "stream_pattern": "תבנית זרם",
-    "stream_pattern_help": "תבנית glob, לדוגמה cameras/* או live/event",
+    "stream_pattern": "גישה לזרמים",
+    "stream_pattern_help": "או הקלד תבנית: cameras/* או live/*",
+    "custom_pattern_hint": "השאר ריק אם בחרת זרמים למעלה",
     "action": "הרשאה",
     "action_read": "קריאה (צפייה)",
     "action_publish": "פרסום (שידור)",

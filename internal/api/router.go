@@ -78,8 +78,6 @@ func (s *Server) Handler(frontendFS fs.FS) http.Handler {
 
 		r.Get("/api/v1/auth/me", s.handleMe)
 		r.Post("/api/v1/auth/change-password", s.handleChangePassword)
-		r.Get("/api/v1/auth/stream-token", s.handleGetStreamToken)
-		r.Post("/api/v1/auth/stream-token", s.handleRegenerateOwnStreamToken)
 
 		// Streams — visible based on user ACL
 		r.Get("/api/v1/streams", s.handleListStreams)
@@ -105,7 +103,6 @@ func (s *Server) Handler(frontendFS fs.FS) http.Handler {
 			r.Get("/api/v1/users/{id}", s.handleGetUser)
 			r.Patch("/api/v1/users/{id}", s.handleUpdateUser)
 			r.Delete("/api/v1/users/{id}", s.handleDeleteUser)
-			r.Post("/api/v1/users/{id}/stream-token", s.handleRegenerateStreamToken)
 
 			// Groups
 			r.Get("/api/v1/groups", s.handleListGroups)

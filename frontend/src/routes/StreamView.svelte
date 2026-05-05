@@ -43,16 +43,27 @@
     setTimeout(() => copiedKey = null, 2000)
   }
 
+  // For display, RTSP/RTMP/SRT show the URL with username and a literal password placeholder.
+  const withCreds = (base: string) => {
+    if (!urls?.username) return base
+    try {
+      const u = new URL(base)
+      u.username = urls.username
+      u.password = 'YOUR_PASSWORD'
+      return u.toString()
+    } catch { return base }
+  }
+
   const urlEntries = $derived(urls ? [
-    { key: 'rtsp', label: $_('stream_urls.rtsp'), value: urls.rtsp },
-    { key: 'hls', label: $_('stream_urls.hls'), value: urls.hls },
+    { key: 'rtsp',   label: $_('stream_urls.rtsp'),   value: withCreds(urls.rtsp) },
+    { key: 'hls',    label: $_('stream_urls.hls'),    value: urls.hls },
     { key: 'webrtc', label: $_('stream_urls.webrtc'), value: urls.webrtc },
-    { key: 'rtmp', label: $_('stream_urls.rtmp'), value: urls.rtmp },
+    { key: 'rtmp',   label: $_('stream_urls.rtmp'),   value: withCreds(urls.rtmp) },
   ].filter(e => e.value) : [])
 
   const publishEntries = $derived(urls?.isPublishStream ? [
-    { key: 'pub_rtsp', label: $_('stream_urls.publish_rtsp'), value: urls.rtsp },
-    { key: 'pub_rtmp', label: $_('stream_urls.publish_rtmp'), value: urls.publishRtmp ?? urls.rtmp },
+    { key: 'pub_rtsp', label: $_('stream_urls.publish_rtsp'), value: withCreds(urls.rtsp) },
+    { key: 'pub_rtmp', label: $_('stream_urls.publish_rtmp'), value: withCreds(urls.rtmp) },
     { key: 'pub_srt',  label: $_('stream_urls.publish_srt'),  value: urls.srt ?? '' },
   ].filter(e => e.value) : [])
 </script>
@@ -83,7 +94,7 @@
       <!-- Player -->
       <div class="lg:col-span-2">
         {#if stream.ready}
-          <StreamPlayer streamName={name} {info} username={urls?.username} streamToken={urls?.streamToken} />
+          <StreamPlayer streamName={name} {info} />
         {:else}
           <div class="bg-black rounded-xl aspect-video flex items-center justify-center">
             <p class="text-white/60 text-sm">{$_('player.not_ready')}</p>

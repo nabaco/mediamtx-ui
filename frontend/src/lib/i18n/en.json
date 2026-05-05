@@ -47,7 +47,10 @@
     "delete_confirm": "Delete stream \"{name}\"? This cannot be undone.",
     "created": "Stream created",
     "updated": "Stream updated",
-    "deleted": "Stream deleted"
+    "deleted": "Stream deleted",
+    "copy_urls": "Copy URLs",
+    "assign_access": "Assign Access",
+    "auth_note": "Authenticate with username:password in your client."
   },
   "stream_urls": {
     "title": "Stream URLs",
@@ -147,8 +150,9 @@
     "subject_type": "Type",
     "type_user": "User",
     "type_group": "Group",
-    "stream_pattern": "Stream Pattern",
-    "stream_pattern_help": "Glob pattern, e.g. cameras/* or live/event",
+    "stream_pattern": "Stream Access",
+    "stream_pattern_help": "Or type a glob pattern: cameras/* or live/*",
+    "custom_pattern_hint": "Leave blank if streams are selected above",
     "action": "Permission",
     "action_read": "Read (View)",
     "action_publish": "Publish (Stream)",

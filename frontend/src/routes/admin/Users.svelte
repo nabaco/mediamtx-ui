@@ -1,23 +1,20 @@
 <script lang="ts">
   import { _ } from 'svelte-i18n'
-  import { users as usersApi, groups as groupsApi, acls as aclsApi } from '../../lib/api'
+  import { users as usersApi, groups as groupsApi, acls as aclsApi, streams as streamsApi } from '../../lib/api'
   import { addToast } from '../../lib/stores'
-  import type { User, Group, ACL } from '../../lib/types'
+  import type { User, Group, ACL, Stream } from '../../lib/types'
   import Modal from '../../lib/components/Modal.svelte'
-  import { Plus, Trash2, RefreshCw, KeyRound, Copy, Check, Shield, Pencil, UserPlus, ChevronDown, ChevronRight } from 'lucide-svelte'
-  import { copyToClipboard } from '../../lib/utils'
+  import { Plus, Trash2, Shield, Pencil, UserPlus, ChevronDown, ChevronRight } from 'lucide-svelte'
 
   let activeTab = $state<'users' | 'groups' | 'acls'>('users')
 
   // ---- Users ----
   let userList = $state<User[]>([])
   let showUserForm = $state(false)
-  let showTokenModal = $state<{ username: string; token: string } | null>(null)
   let showResetPwModal = $state<User | null>(null)
   let userForm = $state({ username: '', password: '', role: 'user', groupId: 0 })
   let resetPwValue = $state('')
   let savingUser = $state(false)
-  let tokenCopied = $state(false)
 
   // ---- Groups ----
   let groupList = $state<Group[]>([])
@@ -28,18 +25,22 @@
   let renamingGroup = $state<number | null>(null)
   let renameValue = $state('')
   let pendingMemberChecks = $state<Record<number, Record<number, boolean>>>({})
-  let newPermForm = $state<Record<number, { streamPattern: string; action: string }>>({})
+  let newPermForm = $state<Record<number, { selectedStreams: string[]; customPattern: string; action: string }>>({})
 
   // ---- ACLs ----
   let aclList = $state<ACL[]>([])
   let showACLForm = $state(false)
-  let aclForm = $state({ subjectType: 'user', subjectId: 0, streamPattern: '', action: 'read' })
+  let aclForm = $state({ subjectType: 'user', subjectId: 0, selectedStreams: [] as string[], customPattern: '', action: 'read' })
+
+  // ---- Streams (for ACL stream picker) ----
+  let streamList = $state<Stream[]>([])
 
   async function loadAll() {
-    const [u, g, a] = await Promise.all([usersApi.list(), groupsApi.list(), aclsApi.list()])
+    const [u, g, a, s] = await Promise.all([usersApi.list(), groupsApi.list(), aclsApi.list(), streamsApi.list()])
     userList = u
     groupList = g
     aclList = a
+    streamList = s
   }
 
   $effect(() => { loadAll().catch((e: any) => addToast('error', e.message)) })
@@ -70,14 +71,6 @@
     try {
       await usersApi.delete(id)
       addToast('success', $_('users.deleted'))
-      userList = await usersApi.list()
-    } catch (e: any) { addToast('error', e.message) }
-  }
-
-  async function regenToken(u: User) {
-    try {
-      const res = await usersApi.regenerateToken(u.id)
-      showTokenModal = { username: u.username, token: res.token }
       userList = await usersApi.list()
     } catch (e: any) { addToast('error', e.message) }
   }
@@ -115,7 +108,7 @@
   async function expandGroup(id: number) {
     if (expandedGroup === id) { expandedGroup = null; return }
     expandedGroup = id
-    if (!newPermForm[id]) newPermForm[id] = { streamPattern: '', action: 'read' }
+    if (!newPermForm[id]) newPermForm[id] = { selectedStreams: [], customPattern: '', action: 'read' }
     if (!pendingMemberChecks[id]) pendingMemberChecks[id] = {}
     try {
       groupMembers[id] = await groupsApi.members(id)
@@ -159,11 +152,16 @@
 
   async function addGroupACL(groupId: number) {
     const form = newPermForm[groupId]
-    if (!form?.streamPattern.trim()) return
+    const patterns = form.selectedStreams.length > 0
+      ? form.selectedStreams
+      : form.customPattern.trim() ? [form.customPattern.trim()] : []
+    if (!patterns.length) return
     try {
-      await aclsApi.create({ subjectType: 'group', subjectId: groupId, streamPattern: form.streamPattern.trim(), action: form.action })
+      await Promise.all(patterns.map(p =>
+        aclsApi.create({ subjectType: 'group', subjectId: groupId, streamPattern: p, action: form.action })
+      ))
       aclList = await aclsApi.list()
-      newPermForm[groupId] = { streamPattern: '', action: 'read' }
+      newPermForm[groupId] = { selectedStreams: [], customPattern: '', action: 'read' }
       addToast('success', $_('acls.created'))
     } catch (e: any) { addToast('error', e.message) }
   }
@@ -187,8 +185,14 @@
 
   // ACLs
   async function createACL() {
+    const patterns = aclForm.selectedStreams.length > 0
+      ? aclForm.selectedStreams
+      : aclForm.customPattern.trim() ? [aclForm.customPattern.trim()] : []
+    if (!patterns.length) return
     try {
-      await aclsApi.create(aclForm)
+      await Promise.all(patterns.map(p =>
+        aclsApi.create({ subjectType: aclForm.subjectType, subjectId: aclForm.subjectId, streamPattern: p, action: aclForm.action })
+      ))
       aclList = await aclsApi.list()
       showACLForm = false
       addToast('success', $_('acls.created'))
@@ -232,7 +236,6 @@
             <th>{$_('users.username')}</th>
             <th>{$_('users.role')}</th>
             <th>{$_('common.status') ?? 'Status'}</th>
-            <th>Token</th>
             <th class="text-end rtl:text-start"></th>
           </tr>
         </thead>
@@ -251,15 +254,7 @@
                 </button>
               </td>
               <td>
-                <span class="text-xs {u.hasToken ? 'text-green-600' : 'text-slate-400'}">
-                  {u.hasToken ? $_('users.has_token') : $_('users.no_token')}
-                </span>
-              </td>
-              <td>
                 <div class="flex items-center justify-end gap-1">
-                  <button onclick={() => regenToken(u)} class="btn-ghost p-1.5" title={$_('users.regen_token')}>
-                    <KeyRound class="w-3.5 h-3.5" />
-                  </button>
                   <button onclick={() => { showResetPwModal = u; resetPwValue = '' }} class="btn-ghost p-1.5" title={$_('users.reset_password')}>
                     <Shield class="w-3.5 h-3.5" />
                   </button>
@@ -399,25 +394,45 @@
 
                 <!-- Inline add permission -->
                 {#if newPermForm[g.id]}
-                  <div class="flex items-center gap-2">
+                  <div class="flex flex-col gap-2">
+                    {#if streamList.length > 0}
+                      <div class="rounded border border-slate-200 bg-slate-50 max-h-36 overflow-y-auto p-1.5 grid grid-cols-2 sm:grid-cols-3 gap-0.5">
+                        {#each streamList as s (s.name)}
+                          <label class="flex items-center gap-1.5 text-xs cursor-pointer hover:bg-white px-2 py-1 rounded">
+                            <input
+                              type="checkbox"
+                              checked={newPermForm[g.id]?.selectedStreams.includes(s.name)}
+                              onchange={(e) => {
+                                const f = newPermForm[g.id]
+                                if (e.currentTarget.checked) f.selectedStreams = [...f.selectedStreams, s.name]
+                                else f.selectedStreams = f.selectedStreams.filter(n => n !== s.name)
+                              }}
+                            />
+                            <span class="truncate font-mono">{s.name}</span>
+                          </label>
+                        {/each}
+                      </div>
+                    {/if}
                     <input
-                      class="input py-1 text-sm flex-1 font-mono"
-                      placeholder="cameras/* or stream-name"
-                      bind:value={newPermForm[g.id].streamPattern}
+                      class="input py-1 text-xs font-mono"
+                      placeholder={$_('acls.stream_pattern_help')}
+                      bind:value={newPermForm[g.id].customPattern}
                       onkeydown={(e) => { if (e.key === 'Enter') addGroupACL(g.id) }}
                     />
-                    <select class="input py-1 text-sm w-36 shrink-0" bind:value={newPermForm[g.id].action}>
-                      <option value="read">{$_('acls.action_read')}</option>
-                      <option value="publish">{$_('acls.action_publish')}</option>
-                      <option value="both">{$_('acls.action_both')}</option>
-                    </select>
-                    <button
-                      onclick={() => addGroupACL(g.id)}
-                      disabled={!newPermForm[g.id]?.streamPattern.trim()}
-                      class="btn-primary py-1 px-3 text-sm shrink-0"
-                    >
-                      <Plus class="w-3.5 h-3.5" />
-                    </button>
+                    <div class="flex items-center gap-2">
+                      <select class="input py-1 text-sm flex-1" bind:value={newPermForm[g.id].action}>
+                        <option value="read">{$_('acls.action_read')}</option>
+                        <option value="publish">{$_('acls.action_publish')}</option>
+                        <option value="both">{$_('acls.action_both')}</option>
+                      </select>
+                      <button
+                        onclick={() => addGroupACL(g.id)}
+                        disabled={!newPermForm[g.id]?.selectedStreams.length && !newPermForm[g.id]?.customPattern.trim()}
+                        class="btn-primary py-1 px-3 text-sm shrink-0"
+                      >
+                        <Plus class="w-3.5 h-3.5" />
+                      </button>
+                    </div>
                   </div>
                 {/if}
               </div>
@@ -432,7 +447,7 @@
   <!-- ACLs tab -->
   {#if activeTab === 'acls'}
     <div class="flex justify-end">
-      <button onclick={() => { aclForm = { subjectType: 'user', subjectId: 0, streamPattern: '', action: 'read' }; showACLForm = true }} class="btn-primary">
+      <button onclick={() => { aclForm = { subjectType: 'user', subjectId: 0, selectedStreams: [], customPattern: '', action: 'read' }; showACLForm = true }} class="btn-primary">
         <Plus class="w-4 h-4" />{$_('acls.add')}
       </button>
     </div>
@@ -532,33 +547,6 @@
   </Modal>
 {/if}
 
-<!-- Stream token modal -->
-{#if showTokenModal}
-  <Modal title={$_('users.regen_token')} onclose={() => showTokenModal = null}>
-    {#snippet children()}
-      <div class="flex flex-col gap-3">
-        <div class="bg-amber-50 border border-amber-200 rounded-lg p-3 text-sm text-amber-800">
-          {$_('users.token_warning')}
-        </div>
-        <div>
-          <p class="label">{$_('users.token_label')} — {showTokenModal.username}</p>
-          <div class="flex gap-2">
-            <code class="input flex-1 font-mono text-xs">{showTokenModal.token}</code>
-            <button
-              onclick={async () => { await copyToClipboard(showTokenModal!.token); tokenCopied = true; setTimeout(() => tokenCopied = false, 2000) }}
-              class="btn-secondary px-3"
-            >
-              {#if tokenCopied}<Check class="w-4 h-4 text-green-600" />{:else}<Copy class="w-4 h-4" />{/if}
-            </button>
-          </div>
-        </div>
-      </div>
-    {/snippet}
-    {#snippet footer()}
-      <button onclick={() => showTokenModal = null} class="btn-primary">{$_('common.close')}</button>
-    {/snippet}
-  </Modal>
-{/if}
 
 <!-- Create group modal -->
 {#if showGroupForm}
@@ -603,9 +591,27 @@
           </select>
         </div>
         <div>
-          <label class="label" for="acl-pattern">{$_('acls.stream_pattern')}</label>
-          <input id="acl-pattern" class="input" bind:value={aclForm.streamPattern} placeholder="cameras/* or live/stream1" />
-          <p class="text-xs text-slate-400 mt-1">{$_('acls.stream_pattern_help')}</p>
+          <label class="label">{$_('acls.stream_pattern')}</label>
+          {#if streamList.length > 0}
+            <div class="rounded border border-slate-200 bg-slate-50 max-h-40 overflow-y-auto p-1.5 grid grid-cols-1 sm:grid-cols-2 gap-0.5 mb-2">
+              {#each streamList as s (s.name)}
+                <label class="flex items-center gap-2 text-sm cursor-pointer hover:bg-white px-2 py-1 rounded">
+                  <input
+                    type="checkbox"
+                    checked={aclForm.selectedStreams.includes(s.name)}
+                    onchange={(e) => {
+                      if (e.currentTarget.checked) aclForm.selectedStreams = [...aclForm.selectedStreams, s.name]
+                      else aclForm.selectedStreams = aclForm.selectedStreams.filter(n => n !== s.name)
+                    }}
+                  />
+                  <span class="font-mono truncate">{s.name}</span>
+                  {#if s.ready}<span class="w-1.5 h-1.5 rounded-full bg-green-500 shrink-0"></span>{/if}
+                </label>
+              {/each}
+            </div>
+          {/if}
+          <input id="acl-pattern" class="input text-sm font-mono" bind:value={aclForm.customPattern} placeholder={$_('acls.stream_pattern_help')} />
+          <p class="text-xs text-slate-400 mt-1">{$_('acls.custom_pattern_hint')}</p>
         </div>
         <div>
           <label class="label" for="acl-action">{$_('acls.action')}</label>

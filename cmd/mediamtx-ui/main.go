@@ -1,9 +1,7 @@
 package main
 
 import (
-	"crypto/rand"
 	"database/sql"
-	"encoding/hex"
 	"fmt"
 	"log/slog"
 	"net/http"
@@ -107,19 +105,8 @@ func seedAdmin(database *sql.DB, cfg *config.Config) error {
 		return fmt.Errorf("hash admin password: %w", err)
 	}
 
-	user, err := db.CreateUser(database, cfg.Auth.InitialAdminUser, string(hash), db.RoleAdmin)
-	if err != nil {
+	if _, err := db.CreateUser(database, cfg.Auth.InitialAdminUser, string(hash), db.RoleAdmin); err != nil {
 		return fmt.Errorf("create initial admin: %w", err)
-	}
-
-	// Auto-generate a stream token so the admin can access streams immediately.
-	b := make([]byte, 16)
-	if _, err := rand.Read(b); err != nil {
-		return fmt.Errorf("generate stream token: %w", err)
-	}
-	token := hex.EncodeToString(b)
-	if _, err := db.UpdateUser(database, user.ID, db.UpdateUserParams{StreamTokenHash: &token}); err != nil {
-		return fmt.Errorf("set admin stream token: %w", err)
 	}
 
 	slog.Info("initial admin account created", "username", cfg.Auth.InitialAdminUser)

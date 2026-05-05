@@ -1,8 +1,6 @@
 package api
 
 import (
-	"crypto/rand"
-	"encoding/base64"
 	"net/http"
 
 	"golang.org/x/crypto/bcrypt"
@@ -103,35 +101,6 @@ func (s *Server) handleChangePassword(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	noContent(w)
-}
-
-func (s *Server) handleGetStreamToken(w http.ResponseWriter, r *http.Request) {
-	claims := claimsFromCtx(r)
-	user, err := dbpkg.GetUserByID(s.db, claims.UserID)
-	if err != nil {
-		jsonErr(w, http.StatusInternalServerError, "user not found")
-		return
-	}
-	if user.StreamTokenHash == nil {
-		jsonOK(w, map[string]any{"token": nil})
-		return
-	}
-	jsonOK(w, map[string]string{"token": *user.StreamTokenHash})
-}
-
-func (s *Server) handleRegenerateOwnStreamToken(w http.ResponseWriter, r *http.Request) {
-	claims := claimsFromCtx(r)
-	raw := make([]byte, 32)
-	if _, err := rand.Read(raw); err != nil {
-		jsonErr(w, http.StatusInternalServerError, "token generation failed")
-		return
-	}
-	token := base64.URLEncoding.EncodeToString(raw)
-	if _, err := dbpkg.UpdateUser(s.db, claims.UserID, dbpkg.UpdateUserParams{StreamTokenHash: &token}); err != nil {
-		jsonErr(w, http.StatusInternalServerError, err.Error())
-		return
-	}
-	jsonOK(w, map[string]string{"token": token})
 }
 
 func (s *Server) handleMe(w http.ResponseWriter, r *http.Request) {

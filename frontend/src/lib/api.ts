@@ -48,8 +48,6 @@ export const auth = {
   me: () => get_<MeResponse>('/auth/me'),
   changePassword: (currentPassword: string, newPassword: string) =>
     post<void>('/auth/change-password', { currentPassword, newPassword }),
-  getStreamToken: () => get_<{ token: string | null }>('/auth/stream-token'),
-  regenerateStreamToken: () => post<{ token: string }>('/auth/stream-token', {}),
 }
 
 // ---- Streams ----
@@ -74,8 +72,6 @@ export const users = {
   update: (id: number, data: Partial<{ password: string; role: string; enabled: boolean }>) =>
     patch<User>(`/users/${id}`, data),
   delete: (id: number) => del(`/users/${id}`),
-  regenerateToken: (id: number) =>
-    post<{ token: string }>(`/users/${id}/stream-token`, {}),
 }
 
 // ---- Groups ----

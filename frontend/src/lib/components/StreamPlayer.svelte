@@ -1,7 +1,9 @@
 <script lang="ts">
   import { _ } from 'svelte-i18n'
   import Hls from 'hls.js'
+  import { get } from 'svelte/store'
   import { onDestroy } from 'svelte'
+  import { token as jwtStore, currentUser } from '../stores'
   import type { SystemInfo } from '../types'
 
   // Factory returns a hls.js pLoader that rewrites absolute URLs in manifests to use
@@ -36,10 +38,8 @@
   interface Props {
     streamName: string
     info: SystemInfo
-    username?: string
-    streamToken?: string
   }
-  let { streamName, info, username, streamToken }: Props = $props()
+  let { streamName, info }: Props = $props()
 
   type Format = 'webrtc' | 'hls'
   let format = $state<Format>('webrtc')
@@ -137,9 +137,11 @@
 
       if (stale()) return
 
+      const jwt = get(jwtStore)
+      const username = get(currentUser)?.username
       const whepHeaders: Record<string, string> = { 'Content-Type': 'application/sdp' }
-      if (username && streamToken) {
-        whepHeaders['Authorization'] = 'Basic ' + btoa(`${username}:${streamToken}`)
+      if (username && jwt) {
+        whepHeaders['Authorization'] = 'Basic ' + btoa(`${username}:${jwt}`)
       }
 
       const resp = await fetch(webrtcUrl + '/whep', {
@@ -165,12 +167,14 @@
     stopAll()
     status = 'loading'
     if (Hls.isSupported()) {
+      const jwt = get(jwtStore)
+      const username = get(currentUser)?.username
       const hlsConfig: any = {
         enableWorker: false,
         pLoader: makeManifestRewriteLoader(resolvedHost, info.hlsPort, scheme),
       }
-      if (username && streamToken) {
-        const authHeader = 'Basic ' + btoa(`${username}:${streamToken}`)
+      if (username && jwt) {
+        const authHeader = 'Basic ' + btoa(`${username}:${jwt}`)
         hlsConfig.xhrSetup = (xhr: XMLHttpRequest) => {
           xhr.setRequestHeader('Authorization', authHeader)
         }
@@ -191,11 +195,8 @@
         }
       })
     } else if (videoEl.canPlayType('application/vnd.apple.mpegurl')) {
-      // Safari native HLS — credentials must be embedded in the URL
-      const safariUrl = username && streamToken
-        ? `http://${username}:${streamToken}@${resolvedHost}:${info.hlsPort}/${streamName}/index.m3u8`
-        : hlsUrl
-      videoEl.src = safariUrl
+      // Safari native HLS
+      videoEl.src = hlsUrl
       videoEl.muted = true
       videoEl.play().then(() => status = 'playing').catch(e => {
         errorMsg = e.message; status = 'error'

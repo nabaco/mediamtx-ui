@@ -1,8 +1,6 @@
 package api
 
 import (
-	"crypto/rand"
-	"encoding/base64"
 	"net/http"
 	"strconv"
 
@@ -13,12 +11,11 @@ import (
 )
 
 type userResponse struct {
-	ID           int64  `json:"id"`
-	Username     string `json:"username"`
-	Role         string `json:"role"`
-	Enabled      bool   `json:"enabled"`
-	HasToken     bool   `json:"hasToken"`
-	CreatedAt    string `json:"createdAt"`
+	ID        int64  `json:"id"`
+	Username  string `json:"username"`
+	Role      string `json:"role"`
+	Enabled   bool   `json:"enabled"`
+	CreatedAt string `json:"createdAt"`
 }
 
 type createUserRequest struct {
@@ -160,44 +157,12 @@ func (s *Server) handleDeleteUser(w http.ResponseWriter, r *http.Request) {
 	noContent(w)
 }
 
-func (s *Server) handleRegenerateStreamToken(w http.ResponseWriter, r *http.Request) {
-	id, err := pathParamID(r, "id")
-	if err != nil {
-		jsonErr(w, http.StatusBadRequest, "invalid id")
-		return
-	}
-
-	// Generate a cryptographically random 32-byte token
-	raw := make([]byte, 32)
-	if _, err := rand.Read(raw); err != nil {
-		jsonErr(w, http.StatusInternalServerError, "token generation failed")
-		return
-	}
-	token := base64.URLEncoding.EncodeToString(raw)
-
-	// Stream tokens are stored plaintext — they are already distributed in RTSP URLs
-	// and need to be retrievable for WHEP/browser playback.
-	_, err = dbpkg.UpdateUser(s.db, id, dbpkg.UpdateUserParams{StreamTokenHash: &token})
-	if err == dbpkg.ErrNotFound {
-		jsonErr(w, http.StatusNotFound, "user not found")
-		return
-	}
-	if err != nil {
-		jsonErr(w, http.StatusInternalServerError, err.Error())
-		return
-	}
-
-	// Return the raw token once — caller must save it
-	jsonOK(w, map[string]string{"token": token})
-}
-
 func toUserResponse(u *dbpkg.User) userResponse {
 	return userResponse{
 		ID:        u.ID,
 		Username:  u.Username,
 		Role:      string(u.Role),
 		Enabled:   u.Enabled,
-		HasToken:  u.StreamTokenHash != nil,
 		CreatedAt: u.CreatedAt.Format("2006-01-02T15:04:05Z"),
 	}
 }

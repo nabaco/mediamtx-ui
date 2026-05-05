@@ -31,9 +31,7 @@ type streamURLsResponse struct {
 	HLS             string `json:"hls"`
 	WebRTC          string `json:"webrtc"`
 	RTMP            string `json:"rtmp"`
-	PublishRTMP     string `json:"publishRtmp,omitempty"` // slug-authenticated publish URL (no username/password)
 	SRT             string `json:"srt,omitempty"`
-	StreamToken     string `json:"streamToken,omitempty"`
 	Username        string `json:"username,omitempty"`
 	IsPublishStream bool   `json:"isPublishStream"`
 }
@@ -132,12 +130,6 @@ func (s *Server) handleStreamURLs(w http.ResponseWriter, r *http.Request) {
 	}
 
 	host := s.mediamtxPublicHostFor(r)
-	userinfo := ""
-	streamToken := ""
-	if user.StreamTokenHash != nil {
-		streamToken = *user.StreamTokenHash
-		userinfo = url.UserPassword(user.Username, streamToken).String() + "@"
-	}
 
 	// Use live mediamtx port config; fall back to app config defaults.
 	rtspPort := s.cfg.MediaMTX.RTSPPort
@@ -154,42 +146,20 @@ func (s *Server) handleStreamURLs(w http.ResponseWriter, r *http.Request) {
 	}
 
 	sc := schemeFor(r)
-	hlsURL := fmt.Sprintf("%s://%s%s:%d/%s/index.m3u8", sc, userinfo, host, hlsPort, name)
-	rtmpURL := fmt.Sprintf("rtmp://%s:%d/%s", host, rtmpPort, name)
-	if streamToken != "" {
-		rtmpURL = fmt.Sprintf("rtmp://%s%s:%d/%s", userinfo, host, rtmpPort, name)
-	}
-
-	// Slug-based publish URL: no username/password, simpler for OBS/encoders.
-	// In OBS: Server = "rtmp://host:port/", Stream Key = "streamname?token=slug"
-	publishRTMP := ""
-	if streamToken != "" {
-		slug := dbpkg.PublishSlug(streamToken)
-		publishRTMP = fmt.Sprintf("rtmp://%s:%d/%s?token=%s", host, rtmpPort, name, slug)
-	}
-
-	srtStreamID := "publish:" + name
-	if streamToken != "" {
-		srtStreamID = fmt.Sprintf("publish:%s:%s:%s", name, user.Username, streamToken)
-	}
-	srtURL := fmt.Sprintf("srt://%s:%d?streamid=%s", host, srtPort, srtStreamID)
+	srtStreamID := fmt.Sprintf("publish:%s:%s:PASSWORD", name, user.Username)
 
 	// Assume publish stream unless the config explicitly shows a pull source.
-	// "publisher" is mediamtx's explicit keyword for push-only paths; empty
-	// string means the same when no source is set via the API.
 	isPublish := true
 	if cfg, err := s.mtx.GetConfigPath(name); err == nil {
 		isPublish = cfg.Source == "" || cfg.Source == "publisher"
 	}
 
 	jsonOK(w, streamURLsResponse{
-		RTSP:            fmt.Sprintf("rtsp://%s%s:%d/%s", userinfo, host, rtspPort, name),
-		HLS:             hlsURL,
+		RTSP:            fmt.Sprintf("rtsp://%s:%d/%s", host, rtspPort, name),
+		HLS:             fmt.Sprintf("%s://%s:%d/%s/index.m3u8", sc, host, hlsPort, name),
 		WebRTC:          fmt.Sprintf("%s://%s:%d/%s", sc, host, webrtcPort, name),
-		RTMP:            rtmpURL,
-		PublishRTMP:     publishRTMP,
-		SRT:             srtURL,
-		StreamToken:     streamToken,
+		RTMP:            fmt.Sprintf("rtmp://%s:%d/%s", host, rtmpPort, name),
+		SRT:             fmt.Sprintf("srt://%s:%d?streamid=%s", host, srtPort, srtStreamID),
 		Username:        user.Username,
 		IsPublishStream: isPublish,
 	})

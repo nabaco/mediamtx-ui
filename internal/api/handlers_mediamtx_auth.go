@@ -6,6 +6,9 @@ import (
 	"log/slog"
 	"net/http"
 	"net/url"
+	"strings"
+
+	"golang.org/x/crypto/bcrypt"
 
 	dbpkg "mediamtx-ui/internal/db"
 	"mediamtx-ui/internal/metrics"
@@ -84,26 +87,9 @@ func (s *Server) checkMediaMTXAuth(req mediamtxAuthRequest) (allowed bool, resol
 	if req.User == "" && req.Query != "" {
 		req.User, req.Password = userAndPassFromQuery(req.Query)
 	}
-	// Some clients (HLS/WebRTC) use ?token=xxx without a username.
-	// Treat token alone as the stream token for the stream-token-only auth path.
+	// Some clients (HLS/WebRTC) pass ?token=xxx without a username.
 	if req.Token != "" && req.Password == "" {
 		req.Password = req.Token
-	}
-
-	// Slug-based anonymous publish: RTMP/SRT clients that can't embed credentials
-	// use ?token={slug} in the query string instead of user:pass@ in the URL.
-	if req.Action == "publish" && req.User == "" {
-		if slug := slugFromQuery(req.Query); slug != "" {
-			if user, err := dbpkg.GetUserByPublishSlug(s.db, slug); err == nil {
-				if user.Role == dbpkg.RoleAdmin {
-					return true, user.Username
-				}
-				if ok, _ := dbpkg.CheckAccess(s.db, user.ID, req.Path, dbpkg.ACLActionPublish); ok {
-					return true, user.Username
-				}
-				return false, user.Username
-			}
-		}
 	}
 
 	if req.User == "" {
@@ -115,35 +101,41 @@ func (s *Server) checkMediaMTXAuth(req mediamtxAuthRequest) (allowed bool, resol
 		return false, req.User
 	}
 
-	// Verify stream token (stored plaintext)
-	if user.StreamTokenHash == nil || *user.StreamTokenHash != req.Password {
+	// JWT auth: browser player sends the UI JWT as Basic auth password.
+	if looksLikeJWT(req.Password) {
+		claims, err := s.jwt.Verify(req.Password)
+		if err != nil || claims.Username != req.User {
+			return false, req.User
+		}
+		if user.Role == dbpkg.RoleAdmin {
+			return true, req.User
+		}
+		action := dbpkg.ACLActionRead
+		if req.Action == "publish" {
+			action = dbpkg.ACLActionPublish
+		}
+		ok, _ := dbpkg.CheckAccess(s.db, user.ID, req.Path, action)
+		return ok, req.User
+	}
+
+	// Standard bcrypt password auth (VLC, OBS, ffmpeg, external clients).
+	if err := bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(req.Password)); err != nil {
 		return false, req.User
 	}
 
-	// Admins have implicit access to all streams — no ACL check needed.
 	if user.Role == dbpkg.RoleAdmin {
 		return true, req.User
 	}
 
-	// Check ACL for regular users
 	action := dbpkg.ACLActionRead
 	if req.Action == "publish" {
 		action = dbpkg.ACLActionPublish
 	}
-
-	ok, err := dbpkg.CheckAccess(s.db, user.ID, req.Path, action)
-	if err != nil || !ok {
-		return false, req.User
-	}
-
-	return true, req.User
+	ok, _ := dbpkg.CheckAccess(s.db, user.ID, req.Path, action)
+	return ok, req.User
 }
 
-// slugFromQuery extracts the ?token= value from a mediamtx query string.
-func slugFromQuery(query string) string {
-	q, err := url.ParseQuery(query)
-	if err != nil {
-		return ""
-	}
-	return q.Get("token")
+// looksLikeJWT returns true for HS256 JWTs (3-part dot-separated, eyJ prefix).
+func looksLikeJWT(s string) bool {
+	return strings.Count(s, ".") == 2 && strings.HasPrefix(s, "eyJ")
 }

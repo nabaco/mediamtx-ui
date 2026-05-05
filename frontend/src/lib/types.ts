@@ -3,7 +3,6 @@ export interface User {
   username: string
   role: 'admin' | 'user'
   enabled: boolean
-  hasToken: boolean
   createdAt: string
 }
 
@@ -41,9 +40,7 @@ export interface StreamURLs {
   hls: string
   webrtc: string
   rtmp: string
-  publishRtmp?: string
   srt?: string
-  streamToken?: string
   username?: string
   isPublishStream?: boolean
 }

@@ -1,18 +1,16 @@
 <script lang="ts">
   import { _ } from 'svelte-i18n'
   import { link, location } from 'svelte-spa-router'
-  import { currentUser, isAdmin, logout, addToast } from '../stores'
+  import { currentUser, isAdmin, logout } from '../stores'
   import { auth as authApi } from '../api'
   import LanguageSwitcher from './LanguageSwitcher.svelte'
   import { Radio, Users, ShieldCheck, Settings, BookOpen, LogOut, Activity, UserCircle2 } from 'lucide-svelte'
   import Modal from './Modal.svelte'
-  import { copyToClipboard } from '../utils'
 
   let mobileOpen = $state(false)
 
   // Account modal
   let showAccount = $state(false)
-  let activeSection = $state<'password' | 'token'>('password')
 
   // Change password
   let changePwForm = $state({ current: '', next: '', confirm: '' })
@@ -20,39 +18,11 @@
   let changePwError = $state('')
   let changePwSuccess = $state(false)
 
-  // Stream token
-  let streamToken = $state<string | null>(null)
-  let tokenLoading = $state(false)
-  let tokenRegenSaving = $state(false)
-  let tokenCopied = $state(false)
-  let tokenRegenSuccess = $state(false)
-  let showRegenWarning = $state(false)
-
-  async function openAccount(section: 'password' | 'token' = 'password') {
-    activeSection = section
+  function openAccount() {
     changePwForm = { current: '', next: '', confirm: '' }
     changePwError = ''
     changePwSuccess = false
-    streamToken = null
-    tokenCopied = false
-    tokenRegenSuccess = false
-    showRegenWarning = false
     showAccount = true
-    if (section === 'token') await loadToken()
-  }
-
-  async function switchSection(section: 'password' | 'token') {
-    activeSection = section
-    if (section === 'token' && streamToken === null && !tokenLoading) await loadToken()
-  }
-
-  async function loadToken() {
-    tokenLoading = true
-    try {
-      const res = await authApi.getStreamToken()
-      streamToken = res.token
-    } catch { streamToken = null }
-    finally { tokenLoading = false }
   }
 
   async function submitChangePw() {
@@ -70,28 +40,6 @@
       changePwError = e.message ?? $_('common.error')
     } finally {
       changePwSaving = false
-    }
-  }
-
-  async function copyToken() {
-    if (!streamToken) return
-    await copyToClipboard(streamToken)
-    tokenCopied = true
-    setTimeout(() => tokenCopied = false, 2000)
-  }
-
-  async function regenToken() {
-    tokenRegenSaving = true
-    showRegenWarning = false
-    try {
-      const res = await authApi.regenerateStreamToken()
-      streamToken = res.token
-      tokenRegenSuccess = true
-      setTimeout(() => tokenRegenSuccess = false, 3000)
-    } catch (e: any) {
-      addToast('error', e.message ?? $_('common.error'))
-    } finally {
-      tokenRegenSaving = false
     }
   }
 
@@ -146,7 +94,7 @@
         <span class="hidden sm:inline text-sm text-slate-500">{$currentUser?.username}</span>
 
         <button
-          onclick={() => openAccount('password')}
+          onclick={openAccount}
           class="btn-ghost p-2"
           title={$_('account.title')}
         >
@@ -199,96 +147,34 @@
 {#if showAccount}
   <Modal title={$_('account.title')} onclose={() => showAccount = false}>
     {#snippet children()}
-      <!-- Section tabs -->
-      <div class="flex gap-1 border-b border-slate-200 mb-4 -mx-5 px-5">
-        <button
-          onclick={() => switchSection('password')}
-          class="px-3 py-2 text-sm font-medium border-b-2 transition-colors
-                 {activeSection === 'password' ? 'border-indigo-600 text-indigo-700' : 'border-transparent text-slate-500 hover:text-slate-700'}"
-        >{$_('account.change_password')}</button>
-        <button
-          onclick={() => switchSection('token')}
-          class="px-3 py-2 text-sm font-medium border-b-2 transition-colors
-                 {activeSection === 'token' ? 'border-indigo-600 text-indigo-700' : 'border-transparent text-slate-500 hover:text-slate-700'}"
-        >{$_('account.stream_token')}</button>
-      </div>
-
-      <!-- Change password section -->
-      {#if activeSection === 'password'}
-        {#if changePwSuccess}
-          <p class="text-green-600 text-sm font-medium py-4 text-center">{$_('account.password_changed')}</p>
-        {:else}
-          <div class="flex flex-col gap-4">
-            <div>
-              <label class="label" for="cp-current">{$_('account.current_password')}</label>
-              <input id="cp-current" type="password" class="input" bind:value={changePwForm.current}
-                disabled={changePwSaving} autocomplete="current-password" />
-            </div>
-            <div>
-              <label class="label" for="cp-new">{$_('account.new_password')}</label>
-              <input id="cp-new" type="password" class="input" bind:value={changePwForm.next}
-                disabled={changePwSaving} autocomplete="new-password" />
-            </div>
-            <div>
-              <label class="label" for="cp-confirm">{$_('account.confirm_password')}</label>
-              <input id="cp-confirm" type="password" class="input" bind:value={changePwForm.confirm}
-                disabled={changePwSaving} autocomplete="new-password"
-                onkeydown={(e) => { if (e.key === 'Enter') submitChangePw() }} />
-            </div>
-            {#if changePwError}
-              <p class="text-red-600 text-sm">{changePwError}</p>
-            {/if}
-          </div>
-        {/if}
-      {/if}
-
-      <!-- Stream token section -->
-      {#if activeSection === 'token'}
+      {#if changePwSuccess}
+        <p class="text-green-600 text-sm font-medium py-4 text-center">{$_('account.password_changed')}</p>
+      {:else}
         <div class="flex flex-col gap-4">
-          <p class="text-sm text-slate-500">{$_('account.stream_token_desc')}</p>
-
-          {#if tokenLoading}
-            <p class="text-sm text-slate-400">{$_('common.loading')}</p>
-          {:else if streamToken}
-            <div>
-              <p class="label">{$_('account.stream_token')}</p>
-              <div class="flex gap-2">
-                <code class="input flex-1 font-mono text-xs truncate">{streamToken}</code>
-                <button onclick={copyToken} class="btn-secondary px-3 shrink-0">
-                  {tokenCopied ? $_('account.token_copied') : $_('account.copy_token')}
-                </button>
-              </div>
-              {#if tokenRegenSuccess}
-                <p class="text-amber-600 text-xs mt-2">{$_('account.token_regenerated')}</p>
-              {/if}
-            </div>
-          {:else}
-            <p class="text-sm text-slate-400">{$_('account.no_token')}</p>
-          {/if}
-
-          <!-- Regen warning + confirm -->
-          {#if showRegenWarning}
-            <div class="bg-amber-50 border border-amber-200 rounded-lg p-3 flex flex-col gap-3">
-              <p class="text-sm text-amber-800">{$_('account.regen_warning')}</p>
-              <div class="flex gap-2">
-                <button onclick={() => showRegenWarning = false} class="btn-secondary text-sm">
-                  {$_('common.cancel')}
-                </button>
-                <button onclick={regenToken} disabled={tokenRegenSaving} class="btn-primary text-sm">
-                  {tokenRegenSaving ? $_('common.loading') : $_('account.regen_token')}
-                </button>
-              </div>
-            </div>
-          {:else}
-            <button onclick={() => showRegenWarning = true} class="btn-secondary self-start text-sm">
-              {$_('account.regen_token')}
-            </button>
+          <div>
+            <label class="label" for="cp-current">{$_('account.current_password')}</label>
+            <input id="cp-current" type="password" class="input" bind:value={changePwForm.current}
+              disabled={changePwSaving} autocomplete="current-password" />
+          </div>
+          <div>
+            <label class="label" for="cp-new">{$_('account.new_password')}</label>
+            <input id="cp-new" type="password" class="input" bind:value={changePwForm.next}
+              disabled={changePwSaving} autocomplete="new-password" />
+          </div>
+          <div>
+            <label class="label" for="cp-confirm">{$_('account.confirm_password')}</label>
+            <input id="cp-confirm" type="password" class="input" bind:value={changePwForm.confirm}
+              disabled={changePwSaving} autocomplete="new-password"
+              onkeydown={(e) => { if (e.key === 'Enter') submitChangePw() }} />
+          </div>
+          {#if changePwError}
+            <p class="text-red-600 text-sm">{changePwError}</p>
           {/if}
         </div>
       {/if}
     {/snippet}
     {#snippet footer()}
-      {#if activeSection === 'password' && !changePwSuccess}
+      {#if !changePwSuccess}
         <button class="btn-secondary" onclick={() => showAccount = false} disabled={changePwSaving}>
           {$_('common.cancel')}
         </button>
