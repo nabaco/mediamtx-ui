@@ -160,14 +160,16 @@ export class JanusClient {
     if (!this.sessionId || !this.handleId || !this.pc) throw new Error('Not connected')
     this.currentMountpointId = mountpointId
 
-    const resp = await this.request({
+    // The response carries a JSEP offer, but onMessage() already routes any
+    // jsep on a matching transaction into applyRemoteSdp. Don't apply it
+    // again here — the second pass hits PC.signalingState === 'stable'
+    // and throws "Failed to set local answer sdp".
+    await this.request({
       janus: 'message',
       session_id: this.sessionId,
       handle_id: this.handleId,
       body: { request: 'watch', id: mountpointId }
     })
-
-    if (resp.jsep) await this.applyRemoteSdp(resp.jsep)
   }
 
   async switchMountpoint(mountpointId: number): Promise<void> {
