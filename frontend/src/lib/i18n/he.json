@@ -12,6 +12,7 @@
     "config": "תצורה",
     "audit": "יומן ביקורת",
     "instructions": "הוראות",
+    "ch14_live": "שידור חי 14",
     "logout": "התנתקות"
   },
   "auth": {
@@ -69,11 +70,9 @@
     "publish_srt": "SRT (דחיפה)"
   },
   "player": {
-    "quality": "איכות",
-    "mode_auto": "אוטומטי",
-    "mode_webrtc": "מהיר (WebRTC)",
-    "mode_hls": "יציב (HLS)",
-    "auto_downgraded": "עבר למצב יציב",
+    "format": "פורמט",
+    "webrtc": "WebRTC",
+    "hls": "HLS",
     "loading": "טוען זרם...",
     "error": "הזרם אינו זמין",
     "not_ready": "הזרם עדיין לא מוכן"

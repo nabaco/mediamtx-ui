@@ -12,6 +12,7 @@
     "config": "Configuration",
     "audit": "Audit Log",
     "instructions": "Instructions",
+    "ch14_live": "CH14 Live",
     "logout": "Logout"
   },
   "auth": {
@@ -69,11 +70,9 @@
     "publish_srt": "SRT (push)"
   },
   "player": {
-    "quality": "Quality",
-    "mode_auto": "Auto",
-    "mode_webrtc": "Fast (WebRTC)",
-    "mode_hls": "Stable (HLS)",
-    "auto_downgraded": "switched to stable",
+    "format": "Format",
+    "webrtc": "WebRTC",
+    "hls": "HLS",
     "loading": "Loading stream...",
     "error": "Stream unavailable",
     "not_ready": "Stream not ready yet"

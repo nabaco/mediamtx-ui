@@ -19,7 +19,9 @@
       const res = await authApi.login(username, password)
       token.set(res.token)
       currentUser.set({ id: 0, username: res.username, role: res.role })
-      push('/')
+      const returnTo = sessionStorage.getItem('loginReturn') ?? '/'
+      sessionStorage.removeItem('loginReturn')
+      push(returnTo)
     } catch (err: any) {
       error = $_('auth.invalid_credentials')
     } finally {

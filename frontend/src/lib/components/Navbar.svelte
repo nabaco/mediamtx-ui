@@ -4,7 +4,7 @@
   import { currentUser, isAdmin, logout } from '../stores'
   import { auth as authApi } from '../api'
   import LanguageSwitcher from './LanguageSwitcher.svelte'
-  import { Radio, Users, ShieldCheck, Settings, BookOpen, LogOut, Activity, UserCircle2 } from 'lucide-svelte'
+  import { Radio, Users, ShieldCheck, Settings, BookOpen, LogOut, Activity, UserCircle2, Tv } from 'lucide-svelte'
   import Modal from './Modal.svelte'
 
   let mobileOpen = $state(false)
@@ -49,6 +49,7 @@
     { href: '/admin/users', label: $_('nav.users'), icon: Users, adminOnly: true },
     { href: '/admin/config', label: $_('nav.config'), icon: Settings, adminOnly: true },
     { href: '/admin/audit', label: $_('nav.audit'), icon: ShieldCheck, adminOnly: true },
+    { href: '/ch14-live', label: $_('nav.ch14_live'), icon: Tv, adminOnly: true },
     { href: '/instructions', label: $_('nav.instructions'), icon: BookOpen, always: true },
   ])
 

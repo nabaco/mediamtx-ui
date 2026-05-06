@@ -16,10 +16,12 @@
   import AdminConfig from './routes/admin/Config.svelte'
   import AdminAudit from './routes/admin/Audit.svelte'
   import Instructions from './routes/Instructions.svelte'
+  import Ch14Live from './routes/Ch14Live.svelte'
   import NotFound from './routes/NotFound.svelte'
 
   const routes = {
     '/':             Dashboard,
+    '/ch14-live':    Ch14Live,
     '/stream/:name': StreamView,
     '/admin/streams': AdminStreams,
     '/admin/users':   AdminUsers,
