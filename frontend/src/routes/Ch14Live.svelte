@@ -10,9 +10,8 @@
 
   interface Quality { label: string; mountpointId: number }
   const QUALITIES: Quality[] = [
-    { label: '1080p', mountpointId: 1 },
-    { label: '720p',  mountpointId: 2 },
-    { label: '480p',  mountpointId: 3 },
+    { label: 'HD', mountpointId: 1 },
+    { label: '480p', mountpointId: 3 },
   ]
 
   // Auth guard
