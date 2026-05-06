@@ -2,6 +2,7 @@ package api
 
 import (
 	"bufio"
+	"bytes"
 	"fmt"
 	"io"
 	"net"
@@ -65,18 +66,37 @@ func (s *Server) handleJanusWS(w http.ResponseWriter, r *http.Request) {
 	defer backConn.Close()
 
 	// Forward the WebSocket upgrade request to Janus verbatim.
-	fmt.Fprintf(backConn, "GET /janus HTTP/1.1\r\nHost: %s\r\n", s.cfg.Janus.WSAddr)
+	var req bytes.Buffer
+	fmt.Fprintf(&req, "GET /janus HTTP/1.1\r\nHost: %s\r\n", s.cfg.Janus.WSAddr)
 	for k, vv := range r.Header {
 		for _, v := range vv {
-			fmt.Fprintf(backConn, "%s: %s\r\n", k, v)
+			fmt.Fprintf(&req, "%s: %s\r\n", k, v)
 		}
 	}
-	fmt.Fprintf(backConn, "\r\n")
+	fmt.Fprintf(&req, "\r\n")
+	if _, err := backConn.Write(req.Bytes()); err != nil {
+		http.Error(w, "janus write failed", http.StatusBadGateway)
+		return
+	}
 
+	// Read the response status line + headers as raw bytes (no http.ReadResponse —
+	// it canonicalizes header casing and resp.Write tries to consume a 101 body,
+	// both of which break the WebSocket upgrade).
 	br := bufio.NewReader(backConn)
-	resp, err := http.ReadResponse(br, nil)
-	if err != nil || resp.StatusCode != http.StatusSwitchingProtocols {
-		http.Error(w, "janus handshake failed", http.StatusBadGateway)
+	var respHead bytes.Buffer
+	for {
+		line, err := br.ReadBytes('\n')
+		if err != nil {
+			http.Error(w, "janus read failed", http.StatusBadGateway)
+			return
+		}
+		respHead.Write(line)
+		if bytes.Equal(line, []byte("\r\n")) {
+			break
+		}
+	}
+	if !bytes.HasPrefix(respHead.Bytes(), []byte("HTTP/1.1 101")) {
+		http.Error(w, "janus did not upgrade", http.StatusBadGateway)
 		return
 	}
 
@@ -91,8 +111,8 @@ func (s *Server) handleJanusWS(w http.ResponseWriter, r *http.Request) {
 	}
 	defer clientConn.Close()
 
-	// Send the 101 Switching Protocols response to the browser.
-	if err := resp.Write(clientConn); err != nil {
+	// Forward the 101 response verbatim.
+	if _, err := clientConn.Write(respHead.Bytes()); err != nil {
 		return
 	}
 
