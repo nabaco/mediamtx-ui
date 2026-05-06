@@ -34,9 +34,6 @@
 
   let janus: JanusClient | null = null
   let videoStream: MediaStream | null = null
-  let audioCtx: AudioContext | null = null
-  let activeGain: GainNode | null = null
-  let channelSources: (MediaStreamAudioSourceNode | null)[] = Array(NUM_AUDIO).fill(null)
   let videoTrackReceived = false
   let audioIdx = 0
   let qualityTimer: ReturnType<typeof setInterval> | null = null
@@ -49,33 +46,15 @@
     return `${scheme}://${window.location.host}/api/v1/janus/ws?token=${encodeURIComponent(jwt ?? '')}`
   }
 
-  function ensureAudioCtx(): AudioContext {
-    if (!audioCtx || audioCtx.state === 'closed') {
-      audioCtx = new AudioContext()
-      // Re-wire any sources that arrived before AudioContext was created
-      audioTracks.forEach((t, i) => {
-        if (t && !channelSources[i]) {
-          channelSources[i] = audioCtx!.createMediaStreamSource(new MediaStream([t]))
-        }
-      })
-    }
-    if (audioCtx.state === 'suspended') audioCtx.resume()
-    return audioCtx
-  }
-
-  function activateChannel(i: number) {
-    const ctx = ensureAudioCtx()
-    activeGain?.disconnect()
-    activeGain = null
-    if (!audioTracks[i] || !channelSources[i]) return
-    activeGain = ctx.createGain()
-    channelSources[i]!.connect(activeGain)
-    activeGain.connect(ctx.destination)
-  }
-
+  // Swap whichever audio track is currently attached to the playing
+  // MediaStream for the one at index i. Native video controls handle
+  // mute/volume — no Web Audio context (which would need a user gesture
+  // to leave the suspended state).
   function selectChannel(i: number) {
     selectedChannel = i
-    activateChannel(i)
+    if (!videoStream || !audioTracks[i]) return
+    videoStream.getAudioTracks().forEach(t => videoStream!.removeTrack(t))
+    videoStream.addTrack(audioTracks[i]!)
   }
 
   function onTrack(track: MediaStreamTrack, _streams: readonly MediaStream[]) {
@@ -86,39 +65,27 @@
         videoStream = new MediaStream([track])
         if (videoEl) {
           videoEl.srcObject = videoStream
-          videoEl.muted = false
-          videoEl.play().then(() => {
-            needsTap = false
-          }).catch(() => {
-            videoEl!.muted = true
-            videoEl!.play().catch(() => {})
-            needsTap = true
-          })
+          // Autoplay policy requires muted=true for unattended start.
+          // User unmutes via the native video controls.
+          videoEl.muted = true
+          videoEl.play().catch(() => { needsTap = true })
         }
         if (autoUpgrade && selectedQuality !== 0) startQualityMonitor()
       }
     } else if (track.kind === 'audio' && audioIdx < NUM_AUDIO) {
       const idx = audioIdx++
-      // Update audioTracks reactively
       const newTracks = [...audioTracks]
       newTracks[idx] = track
       audioTracks = newTracks
-      // Build AudioContext source
-      if (!audioCtx || audioCtx.state === 'closed') audioCtx = new AudioContext()
-      channelSources[idx] = audioCtx.createMediaStreamSource(new MediaStream([track]))
-      // Auto-select Master on first audio track
-      if (idx === 0) activateChannel(0)
+      // Auto-attach Master once it arrives.
+      if (idx === 0 && videoStream) {
+        videoStream.addTrack(track)
+      }
     }
   }
 
   function stopAll() {
     stopQualityMonitor()
-    activeGain?.disconnect()
-    activeGain = null
-    channelSources.forEach(s => s?.disconnect())
-    channelSources = Array(NUM_AUDIO).fill(null)
-    audioCtx?.close()
-    audioCtx = null
     janus?.destroy()
     janus = null
     if (videoEl) videoEl.srcObject = null
@@ -216,12 +183,10 @@
 
   function handleTap() {
     needsTap = false
-    ensureAudioCtx()
     if (videoEl) {
       videoEl.muted = false
       videoEl.play().catch(() => {})
     }
-    activateChannel(selectedChannel)
   }
 
   // Start once videoEl is bound. Don't read `status` here — the cleanup
