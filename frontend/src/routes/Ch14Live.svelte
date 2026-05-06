@@ -224,9 +224,11 @@
     activateChannel(selectedChannel)
   }
 
-  // Start once videoEl is bound
+  // Start once videoEl is bound. Don't read `status` here — the cleanup
+  // resets it to 'idle', which would re-trigger the effect and create an
+  // infinite reconnect loop.
   $effect(() => {
-    if (videoEl && status === 'idle') start()
+    if (videoEl) start()
     return () => stopAll()
   })
 
