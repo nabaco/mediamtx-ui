@@ -29,6 +29,7 @@ type Server struct {
 	mtx        *mediamtx.Client
 	configFile *parser.ParseResult
 	deployType sysdetect.DeployType
+	janusReg   *janusRegistry
 }
 
 func NewServer(
@@ -46,6 +47,7 @@ func NewServer(
 		mtx:        mtx,
 		configFile: configFile,
 		deployType: deployType,
+		janusReg:   newJanusRegistry(),
 	}
 }
 
@@ -87,9 +89,15 @@ func (s *Server) Handler(frontendFS fs.FS) http.Handler {
 		// System info
 		r.Get("/api/v1/system/info", s.handleSystemInfo)
 
+		// Janus WebSocket proxy (auth via ?token= query param for WS upgrade)
+		r.Get("/api/v1/janus/ws", s.handleJanusWS)
+
 		// Admin-only
 		r.Group(func(r chi.Router) {
 			r.Use(s.requireAdmin)
+
+			// Janus viewer list
+			r.Get("/api/v1/janus/viewers", s.handleJanusViewers)
 
 			// Stream management
 			r.Post("/api/v1/streams", s.handleCreateStream)

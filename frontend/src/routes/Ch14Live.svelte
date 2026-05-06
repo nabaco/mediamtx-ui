@@ -2,51 +2,108 @@
   import { push } from 'svelte-spa-router'
   import { get } from 'svelte/store'
   import { onDestroy } from 'svelte'
-  import { token as jwtStore, currentUser, addToast } from '../lib/stores'
-  import { system as systemApi } from '../lib/api'
-  import type { SystemInfo } from '../lib/types'
+  import { token as jwtStore, addToast } from '../lib/stores'
+  import { JanusClient } from '../lib/janusClient'
 
-  const STREAM = 'ch14'
   const CHANNELS = ['Master', 'IFB 1', 'IFB 2', 'IFB 3', 'IFB 4', 'IFB 5', 'IFB 6', 'IFB 7']
   const NUM_AUDIO = CHANNELS.length
 
+  interface Quality { label: string; mountpointId: number }
+  const QUALITIES: Quality[] = [
+    { label: '1080p', mountpointId: 1 },
+    { label: '720p',  mountpointId: 2 },
+    { label: '480p',  mountpointId: 3 },
+  ]
+
   // Auth guard
-  if (!get(jwtStore)) {
+  const jwt = get(jwtStore)
+  if (!jwt) {
     sessionStorage.setItem('loginReturn', '/ch14-live')
     push('/login')
   }
 
-  let info = $state<SystemInfo | null>(null)
   let videoEl = $state<HTMLVideoElement | null>(null)
   let status = $state<'idle' | 'loading' | 'playing' | 'error'>('idle')
   let errorMsg = $state('')
   let needsTap = $state(false)
+  let selectedQuality = $state(0) // index into QUALITIES
 
   // Audio state
-  let audioTracks = $state<MediaTrack[]>(Array(NUM_AUDIO).fill(null))
+  let audioTracks = $state<(MediaStreamTrack | null)[]>(Array(NUM_AUDIO).fill(null))
   let selectedChannel = $state(0)
 
-  interface MediaTrack { track: MediaStreamTrack }
-
-  let rtcPeer: RTCPeerConnection | null = null
+  let janus: JanusClient | null = null
   let videoStream: MediaStream | null = null
   let audioCtx: AudioContext | null = null
   let activeGain: GainNode | null = null
   let channelSources: (MediaStreamAudioSourceNode | null)[] = Array(NUM_AUDIO).fill(null)
+  let videoTrackReceived = false
+  let audioIdx = 0
 
-  const resolvedHost = $derived(
-    info
-      ? ((info.mediamtxHost === 'localhost' || info.mediamtxHost === '127.0.0.1')
-          ? window.location.hostname
-          : info.mediamtxHost)
-      : ''
-  )
-  const scheme = $derived(window.location.protocol === 'https:' ? 'https' : 'http')
-  const webrtcUrl = $derived(info ? `${scheme}://${resolvedHost}:${info.webrtcPort}/${STREAM}` : '')
+  function buildWsUrl(): string {
+    const scheme = window.location.protocol === 'https:' ? 'wss' : 'ws'
+    return `${scheme}://${window.location.host}/api/v1/janus/ws?token=${encodeURIComponent(jwt ?? '')}`
+  }
 
-  async function loadInfo() {
-    try { info = await systemApi.info() }
-    catch (e: any) { addToast('error', e.message) }
+  function ensureAudioCtx(): AudioContext {
+    if (!audioCtx || audioCtx.state === 'closed') {
+      audioCtx = new AudioContext()
+      // Re-wire any sources that arrived before AudioContext was created
+      audioTracks.forEach((t, i) => {
+        if (t && !channelSources[i]) {
+          channelSources[i] = audioCtx!.createMediaStreamSource(new MediaStream([t]))
+        }
+      })
+    }
+    if (audioCtx.state === 'suspended') audioCtx.resume()
+    return audioCtx
+  }
+
+  function activateChannel(i: number) {
+    const ctx = ensureAudioCtx()
+    activeGain?.disconnect()
+    activeGain = null
+    if (!audioTracks[i] || !channelSources[i]) return
+    activeGain = ctx.createGain()
+    channelSources[i]!.connect(activeGain)
+    activeGain.connect(ctx.destination)
+  }
+
+  function selectChannel(i: number) {
+    selectedChannel = i
+    activateChannel(i)
+  }
+
+  function onTrack(track: MediaStreamTrack, _streams: readonly MediaStream[]) {
+    if (track.kind === 'video') {
+      if (!videoTrackReceived) {
+        videoTrackReceived = true
+        status = 'playing'
+        videoStream = new MediaStream([track])
+        if (videoEl) {
+          videoEl.srcObject = videoStream
+          videoEl.muted = false
+          videoEl.play().then(() => {
+            needsTap = false
+          }).catch(() => {
+            videoEl!.muted = true
+            videoEl!.play().catch(() => {})
+            needsTap = true
+          })
+        }
+      }
+    } else if (track.kind === 'audio' && audioIdx < NUM_AUDIO) {
+      const idx = audioIdx++
+      // Update audioTracks reactively
+      const newTracks = [...audioTracks]
+      newTracks[idx] = track
+      audioTracks = newTracks
+      // Build AudioContext source
+      if (!audioCtx || audioCtx.state === 'closed') audioCtx = new AudioContext()
+      channelSources[idx] = audioCtx.createMediaStreamSource(new MediaStream([track]))
+      // Auto-select Master on first audio track
+      if (idx === 0) activateChannel(0)
+    }
   }
 
   function stopAll() {
@@ -56,136 +113,50 @@
     channelSources = Array(NUM_AUDIO).fill(null)
     audioCtx?.close()
     audioCtx = null
-    if (rtcPeer) { rtcPeer.close(); rtcPeer = null }
-    if (videoEl) { videoEl.srcObject = null }
+    janus?.destroy()
+    janus = null
+    if (videoEl) videoEl.srcObject = null
     videoStream = null
     audioTracks = Array(NUM_AUDIO).fill(null)
+    videoTrackReceived = false
+    audioIdx = 0
     status = 'idle'
     needsTap = false
   }
 
-  function ensureAudioCtx() {
-    if (!audioCtx || audioCtx.state === 'closed') {
-      audioCtx = new AudioContext()
-      // Re-create sources for any already-received tracks
-      audioTracks.forEach((t, i) => {
-        if (t) {
-          channelSources[i] = audioCtx!.createMediaStreamSource(new MediaStream([t.track]))
-        }
-      })
-    }
-    if (audioCtx.state === 'suspended') audioCtx.resume()
-  }
-
-  function activateChannel(i: number) {
-    ensureAudioCtx()
-    activeGain?.disconnect()
-    activeGain = null
-    if (!audioTracks[i] || !channelSources[i]) return
-    activeGain = audioCtx!.createGain()
-    channelSources[i]!.connect(activeGain)
-    activeGain.connect(audioCtx!.destination)
-  }
-
-  function selectChannel(i: number) {
-    selectedChannel = i
-    activateChannel(i)
-  }
-
-  async function start() {
-    if (!info || !webrtcUrl || !videoEl) return
+  function start() {
     stopAll()
     status = 'loading'
-    needsTap = false
 
-    const newVideoStream = new MediaStream()
-    videoStream = newVideoStream
-    videoEl.srcObject = newVideoStream
-
-    const pc = new RTCPeerConnection({ iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] })
-    rtcPeer = pc
-    const stale = () => pc.signalingState === 'closed'
-
-    pc.addTransceiver('video', { direction: 'recvonly' })
-    for (let i = 0; i < NUM_AUDIO; i++) {
-      pc.addTransceiver('audio', { direction: 'recvonly' })
-    }
-
-    let audioIdx = 0
-    let playStarted = false
-
-    pc.ontrack = e => {
-      if (stale()) return
-      if (e.track.kind === 'video') {
-        newVideoStream.addTrack(e.track)
-        if (!playStarted) {
-          playStarted = true
-          status = 'playing'
-          videoEl!.muted = false
-          videoEl!.play().then(() => {
-            needsTap = false
-          }).catch(() => {
-            // Autoplay blocked — show tap overlay, play muted, audio via AudioContext
-            videoEl!.muted = true
-            videoEl!.play().catch(() => {})
-            needsTap = true
-          })
-        }
-      } else if (e.track.kind === 'audio' && audioIdx < NUM_AUDIO) {
-        const idx = audioIdx++
-        const newTracks = [...audioTracks]
-        newTracks[idx] = { track: e.track }
-        audioTracks = newTracks
-        // Create AudioContext source for this track
-        if (!audioCtx || audioCtx.state === 'closed') {
-          audioCtx = new AudioContext()
-        }
-        channelSources[idx] = audioCtx.createMediaStreamSource(new MediaStream([e.track]))
-        // Auto-activate channel 0 (Master) once it arrives
-        if (idx === 0) activateChannel(0)
-      }
-    }
-
-    pc.oniceconnectionstatechange = () => {
-      if (stale()) return
-      if (pc.iceConnectionState === 'failed' || pc.iceConnectionState === 'disconnected') {
+    janus = new JanusClient({
+      wsUrl: buildWsUrl(),
+      onTrack,
+      onError: (msg) => {
+        errorMsg = msg
         status = 'error'
-        errorMsg = 'Connection lost'
-      }
-    }
-
-    try {
-      const offer = await pc.createOffer()
-      if (stale()) return
-      await pc.setLocalDescription(offer)
-
-      await new Promise<void>(resolve => {
-        if (pc.iceGatheringState === 'complete') { resolve(); return }
-        const fn = () => {
-          if (pc.iceGatheringState === 'complete') {
-            pc.removeEventListener('icegatheringstatechange', fn); resolve()
-          }
+        addToast('error', msg)
+      },
+      onConnected: async () => {
+        try {
+          await janus!.watchMountpoint(QUALITIES[selectedQuality].mountpointId)
+        } catch (e: any) {
+          errorMsg = e.message
+          status = 'error'
         }
-        pc.addEventListener('icegatheringstatechange', fn)
-        setTimeout(resolve, 5000)
-      })
+      }
+    })
 
-      if (stale()) return
+    janus.connect()
+  }
 
-      const jwt = get(jwtStore)
-      const username = get(currentUser)?.username
-      const headers: Record<string, string> = { 'Content-Type': 'application/sdp' }
-      if (username && jwt) headers['Authorization'] = 'Basic ' + btoa(`${username}:${jwt}`)
-
-      const resp = await fetch(webrtcUrl + '/whep', { method: 'POST', headers, body: pc.localDescription!.sdp })
-      if (stale()) return
-      if (!resp.ok) throw new Error(`WHEP ${resp.status}: ${await resp.text()}`)
-      const sdpAnswer = await resp.text()
-      if (stale()) return
-      await pc.setRemoteDescription({ type: 'answer', sdp: sdpAnswer })
+  async function switchQuality(i: number) {
+    if (i === selectedQuality) return
+    selectedQuality = i
+    if (!janus || status !== 'playing') return
+    try {
+      await janus.switchMountpoint(QUALITIES[i].mountpointId)
     } catch (e: any) {
-      errorMsg = e.message
-      status = 'error'
+      addToast('error', e.message)
     }
   }
 
@@ -199,85 +170,93 @@
     activateChannel(selectedChannel)
   }
 
-  // Start once info and videoEl are both ready
+  // Start once videoEl is bound
   $effect(() => {
-    if (info && videoEl && status === 'idle') start()
+    if (videoEl && status === 'idle') start()
     return () => stopAll()
   })
-
-  $effect(() => { loadInfo() })
 
   onDestroy(stopAll)
 </script>
 
 <div class="flex flex-col gap-4">
-  <h1 class="text-2xl font-bold text-slate-900">CH14 Live</h1>
+  <div class="flex items-center justify-between">
+    <h1 class="text-2xl font-bold text-slate-900">CH14 Live</h1>
 
-  {#if !info}
-    <div class="flex justify-center py-16">
-      <div class="w-8 h-8 border-2 border-indigo-200 border-t-indigo-600 rounded-full animate-spin"></div>
+    <!-- Quality selector -->
+    <div class="flex gap-1">
+      {#each QUALITIES as q, i}
+        <button
+          onclick={() => switchQuality(i)}
+          class="px-3 py-1.5 rounded-md text-sm font-semibold transition-colors
+                 {selectedQuality === i
+                   ? 'bg-indigo-600 text-white'
+                   : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}"
+        >
+          {q.label}
+        </button>
+      {/each}
     </div>
-  {:else}
-    <!-- Desktop: video + channel column side by side; Mobile: video then channel grid -->
-    <div class="flex flex-col md:flex-row gap-3">
+  </div>
 
-      <!-- Video -->
-      <div class="relative bg-black rounded-xl overflow-hidden flex-1 aspect-video">
-        <!-- svelte-ignore a11y_media_has_caption -->
-        <video bind:this={videoEl} class="w-full h-full object-contain" controls playsinline></video>
+  <!-- Desktop: video + channel column; Mobile: video then grid -->
+  <div class="flex flex-col md:flex-row gap-3">
 
-        {#if status === 'loading'}
-          <div class="absolute inset-0 flex items-center justify-center bg-black/60">
-            <div class="text-white text-sm flex flex-col items-center gap-2">
-              <div class="w-8 h-8 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
-              Connecting...
-            </div>
+    <!-- Video -->
+    <div class="relative bg-black rounded-xl overflow-hidden flex-1 aspect-video">
+      <!-- svelte-ignore a11y_media_has_caption -->
+      <video bind:this={videoEl} class="w-full h-full object-contain" controls playsinline></video>
+
+      {#if status === 'loading'}
+        <div class="absolute inset-0 flex items-center justify-center bg-black/60">
+          <div class="text-white text-sm flex flex-col items-center gap-2">
+            <div class="w-8 h-8 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+            Connecting...
           </div>
-        {:else if status === 'error'}
-          <div class="absolute inset-0 flex items-center justify-center bg-black/80">
-            <div class="text-center text-white">
-              <p class="font-medium">Stream unavailable</p>
-              <p class="text-xs text-white/60 mt-1">{errorMsg}</p>
-              <button onclick={start} class="mt-3 btn-primary text-xs">Retry</button>
-            </div>
+        </div>
+      {:else if status === 'error'}
+        <div class="absolute inset-0 flex items-center justify-center bg-black/80">
+          <div class="text-center text-white">
+            <p class="font-medium">Stream unavailable</p>
+            <p class="text-xs text-white/60 mt-1">{errorMsg}</p>
+            <button onclick={start} class="mt-3 btn-primary text-xs">Retry</button>
           </div>
-        {:else if needsTap}
-          <!-- Autoplay blocked overlay -->
-          <button
-            onclick={handleTap}
-            class="absolute inset-0 flex items-center justify-center bg-black/50 cursor-pointer"
-          >
-            <div class="flex flex-col items-center gap-3 text-white">
-              <div class="w-16 h-16 rounded-full bg-white/20 flex items-center justify-center">
-                <svg class="w-8 h-8 ml-1" fill="currentColor" viewBox="0 0 24 24">
-                  <path d="M8 5v14l11-7z"/>
-                </svg>
-              </div>
-              <span class="text-sm font-medium">Tap to watch</span>
+        </div>
+      {:else if needsTap}
+        <button
+          onclick={handleTap}
+          class="absolute inset-0 flex items-center justify-center bg-black/50 cursor-pointer"
+        >
+          <div class="flex flex-col items-center gap-3 text-white">
+            <div class="w-16 h-16 rounded-full bg-white/20 flex items-center justify-center">
+              <svg class="w-8 h-8 ml-1" fill="currentColor" viewBox="0 0 24 24">
+                <path d="M8 5v14l11-7z"/>
+              </svg>
             </div>
-          </button>
-        {/if}
-      </div>
-
-      <!-- Audio channel buttons -->
-      <div class="flex flex-row flex-wrap md:flex-col gap-2 md:w-32">
-        {#each CHANNELS as label, i}
-          {@const available = !!audioTracks[i]}
-          <button
-            onclick={() => selectChannel(i)}
-            disabled={!available}
-            class="flex-1 md:flex-none min-w-[4rem] md:w-full py-3 md:py-4 px-2 rounded-lg text-sm font-semibold
-                   transition-colors text-center leading-tight
-                   {selectedChannel === i && available
-                     ? 'bg-indigo-600 text-white shadow-md'
-                     : available
-                       ? 'bg-slate-100 text-slate-700 hover:bg-slate-200 active:bg-slate-300'
-                       : 'bg-slate-50 text-slate-300 cursor-not-allowed'}"
-          >
-            {label}
-          </button>
-        {/each}
-      </div>
+            <span class="text-sm font-medium">Tap to watch</span>
+          </div>
+        </button>
+      {/if}
     </div>
-  {/if}
+
+    <!-- Audio channel buttons -->
+    <div class="flex flex-row flex-wrap md:flex-col gap-2 md:w-32">
+      {#each CHANNELS as label, i}
+        {@const available = !!audioTracks[i]}
+        <button
+          onclick={() => selectChannel(i)}
+          disabled={!available}
+          class="flex-1 md:flex-none min-w-[4rem] md:w-full py-3 md:py-4 px-2 rounded-lg text-sm font-semibold
+                 transition-colors text-center leading-tight
+                 {selectedChannel === i && available
+                   ? 'bg-indigo-600 text-white shadow-md'
+                   : available
+                     ? 'bg-slate-100 text-slate-700 hover:bg-slate-200 active:bg-slate-300'
+                     : 'bg-slate-50 text-slate-300 cursor-not-allowed'}"
+        >
+          {label}
+        </button>
+      {/each}
+    </div>
+  </div>
 </div>

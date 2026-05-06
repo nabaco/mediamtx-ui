@@ -51,5 +51,9 @@ func bearerToken(r *http.Request) string {
 	if after, ok := strings.CutPrefix(h, "Bearer "); ok {
 		return after
 	}
+	// Fallback: query param for WebSocket connections (browsers can't set headers on WS upgrade)
+	if t := r.URL.Query().Get("token"); t != "" {
+		return t
+	}
 	return ""
 }
