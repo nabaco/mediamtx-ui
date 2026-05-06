@@ -172,7 +172,24 @@ export class JanusClient {
 
   async switchMountpoint(mountpointId: number): Promise<void> {
     if (mountpointId === this.currentMountpointId) return
-    await this.watchMountpoint(mountpointId)
+    if (!this.sessionId || !this.handleId) throw new Error('Not connected')
+    // Janus streaming plugin's "switch" reuses the existing PeerConnection and
+    // swaps the underlying source — no SDP renegotiation. Requires the new
+    // mountpoint to use the same codecs (H264 + PCMA in our case).
+    const resp = await this.request({
+      janus: 'message',
+      session_id: this.sessionId,
+      handle_id: this.handleId,
+      body: { request: 'switch', id: mountpointId }
+    })
+    if (resp.plugindata?.data?.error) {
+      throw new Error('switch failed: ' + resp.plugindata.data.error)
+    }
+    this.currentMountpointId = mountpointId
+  }
+
+  async getStats(): Promise<RTCStatsReport | null> {
+    return this.pc ? await this.pc.getStats() : null
   }
 
   private startKeepalive(): void {

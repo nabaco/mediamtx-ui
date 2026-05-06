@@ -25,7 +25,8 @@
   let status = $state<'idle' | 'loading' | 'playing' | 'error'>('idle')
   let errorMsg = $state('')
   let needsTap = $state(false)
-  let selectedQuality = $state(0) // index into QUALITIES
+  let selectedQuality = $state(1) // index into QUALITIES — start on 480p
+  let autoUpgrade = $state(true)  // auto-upgrade to HD once network is stable
 
   // Audio state
   let audioTracks = $state<(MediaStreamTrack | null)[]>(Array(NUM_AUDIO).fill(null))
@@ -38,6 +39,10 @@
   let channelSources: (MediaStreamAudioSourceNode | null)[] = Array(NUM_AUDIO).fill(null)
   let videoTrackReceived = false
   let audioIdx = 0
+  let qualityTimer: ReturnType<typeof setInterval> | null = null
+  let stableTicks = 0
+  let lastPacketsLost = 0
+  let lastPacketsReceived = 0
 
   function buildWsUrl(): string {
     const scheme = window.location.protocol === 'https:' ? 'wss' : 'ws'
@@ -90,6 +95,7 @@
             needsTap = true
           })
         }
+        if (autoUpgrade && selectedQuality !== 0) startQualityMonitor()
       }
     } else if (track.kind === 'audio' && audioIdx < NUM_AUDIO) {
       const idx = audioIdx++
@@ -106,6 +112,7 @@
   }
 
   function stopAll() {
+    stopQualityMonitor()
     activeGain?.disconnect()
     activeGain = null
     channelSources.forEach(s => s?.disconnect())
@@ -121,6 +128,50 @@
     audioIdx = 0
     status = 'idle'
     needsTap = false
+  }
+
+  // Sample inbound RTP stats every 5s; if 480p plays cleanly for 15s
+  // (3 ticks with <1% loss), upgrade to HD once.
+  function startQualityMonitor() {
+    stopQualityMonitor()
+    stableTicks = 0
+    lastPacketsLost = 0
+    lastPacketsReceived = 0
+    qualityTimer = setInterval(async () => {
+      if (!janus || !autoUpgrade || selectedQuality === 0) return
+      const stats = await janus.getStats()
+      if (!stats) return
+      let lost = 0, received = 0
+      stats.forEach((r: any) => {
+        if (r.type === 'inbound-rtp' && r.kind === 'video') {
+          lost = r.packetsLost ?? 0
+          received = r.packetsReceived ?? 0
+        }
+      })
+      const dLost = Math.max(0, lost - lastPacketsLost)
+      const dRecv = Math.max(0, received - lastPacketsReceived)
+      lastPacketsLost = lost
+      lastPacketsReceived = received
+
+      const lossRate = dRecv > 0 ? dLost / (dRecv + dLost) : 1
+      if (dRecv > 50 && lossRate < 0.01) {
+        stableTicks++
+        if (stableTicks >= 3) {
+          autoUpgrade = false
+          stopQualityMonitor()
+          await switchQuality(0) // upgrade to HD
+        }
+      } else {
+        stableTicks = 0
+      }
+    }, 5000)
+  }
+
+  function stopQualityMonitor() {
+    if (qualityTimer) {
+      clearInterval(qualityTimer)
+      qualityTimer = null
+    }
   }
 
   function start() {
@@ -148,8 +199,12 @@
     janus.connect()
   }
 
-  async function switchQuality(i: number) {
+  async function switchQuality(i: number, fromUser = false) {
     if (i === selectedQuality) return
+    if (fromUser) {
+      autoUpgrade = false
+      stopQualityMonitor()
+    }
     selectedQuality = i
     if (!janus || status !== 'playing') return
     try {
@@ -186,7 +241,7 @@
     <div class="flex gap-1">
       {#each QUALITIES as q, i}
         <button
-          onclick={() => switchQuality(i)}
+          onclick={() => switchQuality(i, true)}
           class="px-3 py-1.5 rounded-md text-sm font-semibold transition-colors
                  {selectedQuality === i
                    ? 'bg-indigo-600 text-white'
