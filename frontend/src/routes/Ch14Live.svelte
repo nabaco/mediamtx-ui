@@ -12,6 +12,7 @@
   const QUALITIES: Quality[] = [
     { label: 'HD', mountpointId: 1 },
     { label: '480p', mountpointId: 3 },
+    { label: '360p', mountpointId: 2 },
   ]
 
   // Auth guard
