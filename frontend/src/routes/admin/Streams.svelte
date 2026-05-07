@@ -226,7 +226,7 @@
               <td class="font-medium">
                 <button
                   class="text-indigo-600 hover:underline font-medium"
-                  onclick={(e) => { e.stopPropagation(); push('/streams/' + encodeURIComponent(s.name)) }}
+                  onclick={(e) => { e.stopPropagation(); push('/stream/' + encodeURIComponent(s.name)) }}
                 >
                   {s.name}
                 </button>
@@ -241,7 +241,7 @@
               <td>
                 <div class="flex items-center justify-end gap-0.5" onclick={(e) => e.stopPropagation()}>
                   <button
-                    onclick={() => push('/streams/' + encodeURIComponent(s.name))}
+                    onclick={() => push('/stream/' + encodeURIComponent(s.name))}
                     class="btn-ghost p-1.5" title={$_('dashboard.view')}
                   ><ExternalLink class="w-3.5 h-3.5" /></button>
                   <button
@@ -329,7 +329,7 @@
     style="left:{ctxMenu.x}px; top:{ctxMenu.y}px"
     onclick={(e) => e.stopPropagation()}
   >
-    <button onclick={() => push('/streams/' + encodeURIComponent(ctxMenu!.streamName))}
+    <button onclick={() => push('/stream/' + encodeURIComponent(ctxMenu!.streamName))}
       class="w-full text-start px-4 py-2 text-sm hover:bg-slate-50 flex items-center gap-2">
       <ExternalLink class="w-3.5 h-3.5 text-slate-400" />{$_('dashboard.view')}
     </button>
