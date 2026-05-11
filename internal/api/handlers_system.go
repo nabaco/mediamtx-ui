@@ -2,6 +2,8 @@ package api
 
 import (
 	"net/http"
+
+	"mediamtx-ui/internal/parser"
 )
 
 type systemInfoResponse struct {
@@ -40,14 +42,23 @@ func (s *Server) handleSystemInfo(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleSystemConfig(w http.ResponseWriter, r *http.Request) {
-	if s.configFile == nil || !s.configFile.Available {
+	// Re-read on every request so edits (including ones we wrote via
+	// parser.UpsertPath) show up without a server restart. Falls back to
+	// the path the parser resolved at startup when no explicit ConfigPath
+	// is set in config.
+	path := s.cfg.MediaMTX.ConfigPath
+	if path == "" && s.configFile != nil {
+		path = s.configFile.ResolvedPath
+	}
+	cur := parser.Parse(path)
+	if cur == nil || !cur.Available {
 		jsonOK(w, systemConfigResponse{Available: false})
 		return
 	}
 	jsonOK(w, systemConfigResponse{
 		Available:    true,
-		ResolvedPath: s.configFile.ResolvedPath,
-		RawYAML:      s.configFile.RawYAML,
+		ResolvedPath: cur.ResolvedPath,
+		RawYAML:      cur.RawYAML,
 	})
 }
 
