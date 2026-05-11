@@ -71,11 +71,18 @@
   <div class="container mx-auto px-4 max-w-7xl">
     <div class="flex h-14 items-center justify-between gap-4">
 
-      <!-- Logo -->
-      <a href="/" use:link class="flex items-center gap-2 font-semibold text-slate-900 shrink-0">
-        <Radio class="w-5 h-5 text-indigo-600" />
-        <span class="hidden sm:inline">{$_('app.name')}</span>
-      </a>
+      <!-- Logo: link when normal, plain span in minimal mode (no navigation) -->
+      {#if minimal}
+        <div class="flex items-center gap-2 font-semibold text-slate-900 shrink-0">
+          <Radio class="w-5 h-5 text-indigo-600" />
+          <span class="hidden sm:inline">{$_('app.name')}</span>
+        </div>
+      {:else}
+        <a href="/" use:link class="flex items-center gap-2 font-semibold text-slate-900 shrink-0">
+          <Radio class="w-5 h-5 text-indigo-600" />
+          <span class="hidden sm:inline">{$_('app.name')}</span>
+        </a>
+      {/if}
 
       <!-- Desktop nav links -->
       {#if !minimal}
@@ -96,7 +103,9 @@
 
       <!-- Right side -->
       <div class="flex items-center gap-2 shrink-0">
-        <LanguageSwitcher />
+        {#if !minimal}
+          <LanguageSwitcher />
+        {/if}
 
         <span class="hidden sm:inline text-sm text-slate-500">{$currentUser?.username}</span>
 
