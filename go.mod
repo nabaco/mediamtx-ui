@@ -9,6 +9,7 @@ require (
 	github.com/prometheus/client_golang v1.19.1
 	github.com/spf13/viper v1.19.0
 	golang.org/x/crypto v0.24.0
+	gopkg.in/yaml.v3 v3.0.1
 	modernc.org/sqlite v1.30.0
 )
 
@@ -43,7 +44,6 @@ require (
 	golang.org/x/text v0.16.0 // indirect
 	google.golang.org/protobuf v1.33.0 // indirect
 	gopkg.in/ini.v1 v1.67.0 // indirect
-	gopkg.in/yaml.v3 v3.0.1 // indirect
 	modernc.org/gc/v3 v3.0.0-20240107210532-573471604cb6 // indirect
 	modernc.org/libc v1.50.9 // indirect
 	modernc.org/mathutil v1.6.0 // indirect

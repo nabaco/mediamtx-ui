@@ -12,7 +12,18 @@ import (
 	dbpkg "mediamtx-ui/internal/db"
 	"mediamtx-ui/internal/mediamtx"
 	"mediamtx-ui/internal/metrics"
+	"mediamtx-ui/internal/parser"
 )
+
+// mediamtxYMLPath returns the configured mediamtx.yml path for persistence.
+// Prefers the path the parser actually resolved at startup; falls back to
+// the explicit ConfigPath setting. Empty string disables yml persistence.
+func (s *Server) mediamtxYMLPath() string {
+	if s.configFile != nil && s.configFile.Available && s.configFile.ResolvedPath != "" {
+		return s.configFile.ResolvedPath
+	}
+	return s.cfg.MediaMTX.ConfigPath
+}
 
 type streamResponse struct {
 	Name          string   `json:"name"`
@@ -194,6 +205,11 @@ func (s *Server) handleCreateStream(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if err := parser.UpsertPath(s.mediamtxYMLPath(), req.Name, cfg); err != nil {
+		jsonErr(w, http.StatusInternalServerError, "stream added at runtime but failed to persist to mediamtx.yml: "+err.Error())
+		return
+	}
+
 	if req.Description != "" {
 		_ = dbpkg.UpsertStreamMeta(s.db, req.Name, req.Description)
 	}
@@ -221,6 +237,11 @@ func (s *Server) handleUpdateStream(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if err := parser.UpsertPath(s.mediamtxYMLPath(), name, cfg); err != nil {
+		jsonErr(w, http.StatusInternalServerError, "stream updated at runtime but failed to persist to mediamtx.yml: "+err.Error())
+		return
+	}
+
 	_ = dbpkg.UpsertStreamMeta(s.db, name, req.Description)
 	noContent(w)
 }
@@ -229,6 +250,10 @@ func (s *Server) handleDeleteStream(w http.ResponseWriter, r *http.Request) {
 	name := chi.URLParam(r, "name")
 	if err := s.mtx.DeleteConfigPath(name); err != nil {
 		jsonErr(w, http.StatusBadGateway, err.Error())
+		return
+	}
+	if err := parser.DeletePath(s.mediamtxYMLPath(), name); err != nil {
+		jsonErr(w, http.StatusInternalServerError, "stream removed at runtime but failed to update mediamtx.yml: "+err.Error())
 		return
 	}
 	_ = dbpkg.DeleteStreamMeta(s.db, name)

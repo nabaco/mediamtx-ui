@@ -9,10 +9,10 @@
   const NUM_AUDIO = CHANNELS.length
 
   interface Quality { label: string; mountpointId: number }
+  // mountpointId 3 is the low-rate source (ch14-lr) — non-transcoded.
   const QUALITIES: Quality[] = [
     { label: 'HD', mountpointId: 1 },
     { label: '480p', mountpointId: 3 },
-    { label: '360p', mountpointId: 2 },
   ]
 
   // Auth guard

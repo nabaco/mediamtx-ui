@@ -1,8 +1,8 @@
 <script lang="ts">
-  import Router, { link } from 'svelte-spa-router'
+  import Router, { location } from 'svelte-spa-router'
   import { locale } from 'svelte-i18n'
   import './lib/i18n/index'
-  import { lang, token, currentUser, logout } from './lib/stores'
+  import { lang, token, currentUser, logout, isAdmin } from './lib/stores'
   import { auth as authApi } from './lib/api'
 
   import Navbar from './lib/components/Navbar.svelte'
@@ -41,11 +41,15 @@
       authApi.me().then(u => currentUser.set(u)).catch(() => logout())
     }
   })
+
+  // Non-admins on /ch14-live get a minimal navbar (no menu links, but
+  // password change and logout still available).
+  const minimalNav = $derived($location === '/ch14-live' && !$isAdmin)
 </script>
 
 {#if $token}
   <div class="min-h-screen flex flex-col">
-    <Navbar />
+    <Navbar minimal={minimalNav} />
     <main class="flex-1 container mx-auto px-4 py-6 max-w-7xl">
       <Router {routes} />
     </main>

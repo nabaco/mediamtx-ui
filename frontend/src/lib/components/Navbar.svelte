@@ -7,6 +7,10 @@
   import { Radio, Users, ShieldCheck, Settings, BookOpen, LogOut, Activity, UserCircle2, Tv } from 'lucide-svelte'
   import Modal from './Modal.svelte'
 
+  // When `minimal` is true, nav links and the mobile menu toggle are hidden.
+  // Right-side controls (language, account, logout) stay visible.
+  let { minimal = false }: { minimal?: boolean } = $props()
+
   let mobileOpen = $state(false)
 
   // Account modal
@@ -74,19 +78,21 @@
       </a>
 
       <!-- Desktop nav links -->
-      <div class="hidden md:flex items-center gap-1">
-        {#each visible as nav}
-          <a
-            href={nav.href}
-            use:link
-            class="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-colors
-                   {isActive(nav.href) ? 'bg-indigo-50 text-indigo-700' : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'}"
-          >
-            <nav.icon class="w-4 h-4" />
-            {nav.label}
-          </a>
-        {/each}
-      </div>
+      {#if !minimal}
+        <div class="hidden md:flex items-center gap-1">
+          {#each visible as nav}
+            <a
+              href={nav.href}
+              use:link
+              class="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-colors
+                     {isActive(nav.href) ? 'bg-indigo-50 text-indigo-700' : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'}"
+            >
+              <nav.icon class="w-4 h-4" />
+              {nav.label}
+            </a>
+          {/each}
+        </div>
+      {/if}
 
       <!-- Right side -->
       <div class="flex items-center gap-2 shrink-0">
@@ -111,22 +117,24 @@
         </button>
 
         <!-- Mobile menu toggle -->
-        <button
-          class="md:hidden btn-ghost p-2"
-          onclick={() => mobileOpen = !mobileOpen}
-          aria-label="menu"
-        >
-          <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-              d={mobileOpen ? 'M6 18L18 6M6 6l12 12' : 'M4 6h16M4 12h16M4 18h16'} />
-          </svg>
-        </button>
+        {#if !minimal}
+          <button
+            class="md:hidden btn-ghost p-2"
+            onclick={() => mobileOpen = !mobileOpen}
+            aria-label="menu"
+          >
+            <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                d={mobileOpen ? 'M6 18L18 6M6 6l12 12' : 'M4 6h16M4 12h16M4 18h16'} />
+            </svg>
+          </button>
+        {/if}
       </div>
     </div>
   </div>
 
   <!-- Mobile menu -->
-  {#if mobileOpen}
+  {#if mobileOpen && !minimal}
     <div class="md:hidden border-t border-slate-100 bg-white pb-2">
       {#each visible as nav}
         <a
