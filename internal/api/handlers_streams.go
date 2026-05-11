@@ -1,6 +1,7 @@
 package api
 
 import (
+	"encoding/json"
 	"fmt"
 	"net"
 	"net/http"
@@ -258,6 +259,44 @@ func (s *Server) handleDeleteStream(w http.ResponseWriter, r *http.Request) {
 	}
 	_ = dbpkg.DeleteStreamMeta(s.db, name)
 	noContent(w)
+}
+
+// handleSyncStreamsConfig writes all currently-configured mediamtx paths into
+// mediamtx.yml. Use when paths were added via the UI/API before yml persistence
+// existed, or to reconcile drift between runtime and on-disk config.
+func (s *Server) handleSyncStreamsConfig(w http.ResponseWriter, r *http.Request) {
+	ymlPath := s.mediamtxYMLPath()
+	if ymlPath == "" {
+		jsonErr(w, http.StatusBadRequest, "mediamtx.config_path is not set; cannot sync")
+		return
+	}
+	paths, err := s.mtx.ListAllConfigPaths()
+	if err != nil {
+		jsonErr(w, http.StatusBadGateway, "mediamtx unreachable: "+err.Error())
+		return
+	}
+	var synced []string
+	var failures []string
+	for _, p := range paths {
+		if err := parser.UpsertPath(ymlPath, p.Name, p); err != nil {
+			failures = append(failures, p.Name+": "+err.Error())
+			continue
+		}
+		synced = append(synced, p.Name)
+	}
+	resp := map[string]any{
+		"path":     ymlPath,
+		"synced":   synced,
+		"failures": failures,
+		"count":    len(synced),
+	}
+	if len(failures) > 0 {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusMultiStatus)
+		_ = json.NewEncoder(w).Encode(resp)
+		return
+	}
+	jsonOK(w, resp)
 }
 
 // schemeFor returns "https" when the request arrived over TLS or via a TLS proxy
