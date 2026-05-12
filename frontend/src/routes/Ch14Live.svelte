@@ -92,6 +92,10 @@
   }
 
   function start() {
+    // Guard against the auth-redirect race: $effect fires once before the
+    // route change unmounts this component. Without this, an empty-token WS
+    // is dispatched and surfaces "Janus WebSocket error" toasts.
+    if (!jwt) return
     stopAll()
     status = 'loading'
 
@@ -137,12 +141,9 @@
 
   // Start once videoEl is bound. Don't read `status` here — the cleanup
   // resets it to 'idle', which would re-trigger the effect and create an
-  // infinite reconnect loop. Skip when no JWT — the auth guard above is
-  // already pushing to /login, but the effect still fires before this
-  // component unmounts, which would dispatch a Janus WS without a token
-  // and surface "Janus WebSocket error" / "Janus connection closed".
+  // infinite reconnect loop.
   $effect(() => {
-    if (videoEl && jwt) start()
+    if (videoEl) start()
     return () => stopAll()
   })
 
