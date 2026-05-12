@@ -4,7 +4,6 @@
   import { auth as authApi } from '../lib/api'
   import { token, currentUser, addToast } from '../lib/stores'
   import LanguageSwitcher from '../lib/components/LanguageSwitcher.svelte'
-  import { Radio } from 'lucide-svelte'
 
   let username = $state('')
   let password = $state('')
@@ -30,7 +29,7 @@
   }
 </script>
 
-<div class="min-h-screen bg-slate-50 flex items-center justify-center p-4">
+<div class="min-h-screen bg-white flex items-center justify-center p-4">
   <div class="w-full max-w-sm">
 
     <!-- Language switcher top-right -->
@@ -39,13 +38,11 @@
     </div>
 
     <!-- Card -->
-    <div class="card px-8 py-8">
-      <!-- Logo -->
-      <div class="flex flex-col items-center mb-8">
-        <div class="w-12 h-12 bg-indigo-600 rounded-xl flex items-center justify-center mb-3">
-          <Radio class="w-6 h-6 text-white" />
-        </div>
-        <h1 class="text-xl font-bold text-slate-900">{$_('app.name')}</h1>
+    <div class="bg-white rounded-2xl shadow-md border border-slate-200 px-8 py-10">
+      <!-- Logo: large bold red C14 wordmark, matching guac.tec14.co.il -->
+      <div class="flex flex-col items-center mb-8 select-none">
+        <span class="text-7xl font-black tracking-tight text-[#E10E1A] leading-none">C14</span>
+        <h1 class="text-lg font-bold text-slate-900 mt-3">{$_('app.name')}</h1>
         <p class="text-sm text-slate-500 mt-1">{$_('app.tagline')}</p>
       </div>
 
@@ -54,7 +51,7 @@
           <label class="label" for="username">{$_('auth.username')}</label>
           <input
             id="username"
-            class="input"
+            class="input border-2 border-slate-300 focus:border-slate-900 focus:ring-0"
             type="text"
             autocomplete="username"
             bind:value={username}
@@ -67,7 +64,7 @@
           <label class="label" for="password">{$_('auth.password')}</label>
           <input
             id="password"
-            class="input"
+            class="input border-2 border-slate-300 focus:border-slate-900 focus:ring-0"
             type="password"
             autocomplete="current-password"
             bind:value={password}
@@ -80,7 +77,11 @@
           <p class="text-sm text-red-600 text-center">{error}</p>
         {/if}
 
-        <button type="submit" class="btn-primary w-full mt-2" disabled={loading}>
+        <button
+          type="submit"
+          class="w-full mt-2 py-2.5 rounded-md font-semibold text-white bg-slate-800 hover:bg-slate-900 disabled:bg-slate-400 transition-colors"
+          disabled={loading}
+        >
           {loading ? $_('auth.signing_in') : $_('auth.login')}
         </button>
       </form>
