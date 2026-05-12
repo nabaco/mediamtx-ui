@@ -39,9 +39,16 @@
 
     <!-- Card -->
     <div class="bg-white rounded-2xl shadow-md border border-slate-200 px-8 py-10">
-      <!-- Logo: large bold red C14 wordmark, matching guac.tec14.co.il -->
+      <!-- Logo: large bold red C14 wordmark, matching guac.tec14.co.il.
+           Force a Latin-only font stack + LTR direction so the Hebrew page
+           (which switches html dir=rtl and adds Hebrew font fallbacks)
+           renders the C, 1, 4 glyphs identically to the English page. -->
       <div class="flex flex-col items-center mb-8 select-none">
-        <span class="text-7xl font-black tracking-tight text-[#E10E1A] leading-none">C14</span>
+        <span
+          class="text-7xl font-black tracking-tight text-[#E10E1A] leading-none"
+          dir="ltr"
+          style="font-family: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;"
+        >C14</span>
         <h1 class="text-lg font-bold text-slate-900 mt-3">{$_('app.name')}</h1>
         <p class="text-sm text-slate-500 mt-1">{$_('app.tagline')}</p>
       </div>
