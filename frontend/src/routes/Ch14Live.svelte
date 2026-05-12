@@ -137,9 +137,12 @@
 
   // Start once videoEl is bound. Don't read `status` here — the cleanup
   // resets it to 'idle', which would re-trigger the effect and create an
-  // infinite reconnect loop.
+  // infinite reconnect loop. Skip when no JWT — the auth guard above is
+  // already pushing to /login, but the effect still fires before this
+  // component unmounts, which would dispatch a Janus WS without a token
+  // and surface "Janus WebSocket error" / "Janus connection closed".
   $effect(() => {
-    if (videoEl) start()
+    if (videoEl && jwt) start()
     return () => stopAll()
   })
 
