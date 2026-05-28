@@ -158,7 +158,13 @@ func (s *Server) handleStreamURLs(w http.ResponseWriter, r *http.Request) {
 	}
 
 	sc := schemeFor(r)
-	srtStreamID := fmt.Sprintf("publish:%s:%s:PASSWORD", name, user.Username)
+	// Stream auth uses the UI password, which is bcrypt-hashed server-side and
+	// cannot be recovered. Emit the real username plus a PASSWORD placeholder the
+	// client substitutes — otherwise the copy-paste URLs carry no credentials and
+	// mediamtx rejects them as anonymous.
+	const pwPlaceholder = "PASSWORD"
+	uname := user.Username
+	srtStreamID := fmt.Sprintf("publish:%s:%s:%s", name, uname, pwPlaceholder)
 
 	// Assume publish stream unless the config explicitly shows a pull source.
 	isPublish := true
@@ -167,12 +173,12 @@ func (s *Server) handleStreamURLs(w http.ResponseWriter, r *http.Request) {
 	}
 
 	jsonOK(w, streamURLsResponse{
-		RTSP:            fmt.Sprintf("rtsp://%s:%d/%s", host, rtspPort, name),
+		RTSP:            fmt.Sprintf("rtsp://%s:%s@%s:%d/%s", uname, pwPlaceholder, host, rtspPort, name),
 		HLS:             fmt.Sprintf("%s://%s:%d/%s/index.m3u8", sc, host, hlsPort, name),
 		WebRTC:          fmt.Sprintf("%s://%s:%d/%s", sc, host, webrtcPort, name),
-		RTMP:            fmt.Sprintf("rtmp://%s:%d/%s", host, rtmpPort, name),
+		RTMP:            fmt.Sprintf("rtmp://%s:%d/%s?user=%s&pass=%s", host, rtmpPort, name, uname, pwPlaceholder),
 		SRT:             fmt.Sprintf("srt://%s:%d?streamid=%s", host, srtPort, srtStreamID),
-		Username:        user.Username,
+		Username:        uname,
 		IsPublishStream: isPublish,
 	})
 }

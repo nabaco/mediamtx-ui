@@ -19,7 +19,8 @@ func userAndPassFromQuery(query string) (user, pass string) {
 	if err != nil {
 		return "", ""
 	}
-	return q.Get("user"), q.Get("password")
+	// mediamtx RTMP convention is ?user=&pass= (note "pass", not "password").
+	return q.Get("user"), q.Get("pass")
 }
 
 // mediamtxAuthRequest is the payload mediamtx POSTs to the auth callback.

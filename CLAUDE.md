@@ -67,13 +67,16 @@ Stack: Svelte 5, Vite 6, Tailwind CSS 4, `svelte-spa-router`, `svelte-i18n`, `hl
 
 ### Auth model
 
-Two separate credentials per user:
-- **UI password** — bcrypt hashed, used only for `POST /api/v1/auth/login` → JWT.
-- **Stream token** — stored **plaintext** (required for URL embedding in RTSP/HLS/RTMP). Random 32-byte hex value.
+One credential per user: the **UI password** (bcrypt hashed). Used both for `POST /api/v1/auth/login` → JWT and for stream auth. A separate stream-token mechanism was tried and dropped (too complex); the `stream_token_hash` column and the `PublishSlug`/`GetUserByPublishSlug` helpers are dead remnants of it.
+
+Stream clients embed the UI password directly:
+- RTSP: `rtsp://username:password@host/path`
+- RTMP: `rtmp://host/path?user=username&pass=password` (mediamtx uses `pass`, not `password`)
+- SRT: `streamid=publish:path:username:password`
 
 JWT is `Bearer`-checked by the `requireAuth` middleware on all `/api/v1/` routes except `/auth/login` and `/mediamtx/auth`.
 
-mediamtx calls `POST /api/v1/mediamtx/auth` (no JWT) for every stream connection. The handler checks stream token or publish slug, then runs glob ACL evaluation.
+mediamtx calls `POST /api/v1/mediamtx/auth` (no JWT) for every stream connection. The handler (`checkMediaMTXAuth`) validates the supplied password against the user's bcrypt hash — or, for the browser player, a UI JWT passed as the password — then runs glob ACL evaluation.
 
 ### Database
 

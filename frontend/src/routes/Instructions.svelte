@@ -131,7 +131,7 @@
         <p class="text-sm text-slate-600">Media → Open Network Stream (Ctrl+N)</p>
         <div class="bg-slate-950 rounded-lg px-4 py-3 font-mono text-sm text-green-300">
           <div class="text-slate-500 text-xs mb-1"># RTSP (recommended)</div>
-          rtsp://username:stream-token@{host}:{rtspPort}/{'{'}{$_('streams.name').toLowerCase()}{'}'
+          rtsp://username:password@{host}:{rtspPort}/{'{'}{$_('streams.name').toLowerCase()}{'}'
           }
         </div>
         <div class="bg-slate-950 rounded-lg px-4 py-3 font-mono text-sm text-green-300">
@@ -151,15 +151,15 @@
       <div class="px-5 py-4 flex flex-col gap-3">
         <p class="text-sm text-slate-600">Sources → + → Media Source → Network → uncheck "Local File"</p>
         <div class="bg-slate-950 rounded-lg px-4 py-3 font-mono text-sm text-green-300">
-          rtsp://username:stream-token@{host}:{rtspPort}/{'{'}{$_('streams.name').toLowerCase()}{'}'}
+          rtsp://username:password@{host}:{rtspPort}/{'{'}{$_('streams.name').toLowerCase()}{'}'}
         </div>
         <p class="text-sm text-slate-600 mt-1">To push a stream from OBS to this server (Settings → Stream):</p>
         <div class="bg-slate-950 rounded-lg px-4 py-3 font-mono text-sm">
           <div class="text-slate-400">Service: Custom</div>
           <div class="text-green-300">Server: rtmp://{host}:{rtmpPort}/</div>
-          <div class="text-green-300">Stream Key: {'{'}{$_('streams.name').toLowerCase()}{'}'}?token=your-token-slug</div>
+          <div class="text-green-300">Stream Key: {'{'}{$_('streams.name').toLowerCase()}{'}'}?user=username&amp;pass=password</div>
         </div>
-        <p class="text-xs text-slate-400">Copy the ready-made RTMP publish URL from the stream detail page — it includes your personal token slug automatically.</p>
+        <p class="text-xs text-slate-400">Copy the ready-made RTMP publish URL from the stream detail page — it includes your username and a password placeholder.</p>
       </div>
     </div>
 
@@ -172,11 +172,11 @@
       <div class="px-5 py-4 flex flex-col gap-3">
         <p class="text-sm text-slate-600">Add Input → Stream / SRT</p>
         <div class="bg-slate-950 rounded-lg px-4 py-3 font-mono text-sm text-green-300">
-          rtsp://username:stream-token@{host}:{rtspPort}/{'{'}{$_('streams.name').toLowerCase()}{'}'}
+          rtsp://username:password@{host}:{rtspPort}/{'{'}{$_('streams.name').toLowerCase()}{'}'}
         </div>
         <p class="text-sm text-slate-600 mt-1">To output from vMix (External Output → RTMP):</p>
         <div class="bg-slate-950 rounded-lg px-4 py-3 font-mono text-sm text-green-300">
-          rtmp://{host}:{rtmpPort}/{'{'}{$_('streams.name').toLowerCase()}{'}'}
+          rtmp://{host}:{rtmpPort}/{'{'}{$_('streams.name').toLowerCase()}{'}'}?user=username&amp;pass=password
         </div>
       </div>
     </div>
@@ -208,9 +208,9 @@
         <p class="text-sm text-slate-600">Push a stream to a path configured as <code class="bg-slate-100 px-1 rounded">source: publisher</code>:</p>
         <div class="bg-slate-950 rounded-lg px-4 py-3 font-mono text-sm">
           <div class="text-slate-400 text-xs mb-1"># RTMP</div>
-          <div class="text-green-300">ffmpeg -re -i input.mp4 -c copy -f flv rtmp://{host}:{rtmpPort}/{'{'}{$_('streams.name').toLowerCase()}{'}'}</div>
+          <div class="text-green-300">ffmpeg -re -i input.mp4 -c copy -f flv rtmp://{host}:{rtmpPort}/{'{'}{$_('streams.name').toLowerCase()}{'}'}?user=username&amp;pass=password</div>
           <div class="text-slate-400 text-xs mt-3 mb-1"># SRT</div>
-          <div class="text-green-300">ffmpeg -re -i input.mp4 -c copy -f mpegts "srt://{host}:9999?streamid=publish:{'{'}{$_('streams.name').toLowerCase()}{'}'}"</div>
+          <div class="text-green-300">ffmpeg -re -i input.mp4 -c copy -f mpegts "srt://{host}:9999?streamid=publish:{'{'}{$_('streams.name').toLowerCase()}{'}'}:username:password"</div>
         </div>
       </div>
     </div>
