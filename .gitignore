@@ -22,6 +22,9 @@ vendor/
 !.env.example
 deploy/deploy.local.sh
 scripts/deploy.local.sh
+# Live site deploy config — quadlets/bridge scripts carry real secrets
+# (JWT secret, admin/API/stream passwords). Host is source of truth.
+deploy/tec14/
 
 # Database
 *.db

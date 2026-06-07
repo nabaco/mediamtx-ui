@@ -74,6 +74,8 @@ Stream clients embed the UI password directly:
 - RTMP: `rtmp://host/path?user=username&pass=password` (mediamtx uses `pass`, not `password`)
 - SRT: `streamid=publish:path:username:password`
 
+**RTMP auth is query-string only.** mediamtx does **not** implement Adobe/FMS challenge-response auth (`?authmod=adobe`, Limelight `authmod=llnw`). Encoders with "built-in authentication" (e.g. Wowza/FMLE — `WowzaProLiveRepeater`, `FMLE/3.0`) put creds in the RTMP `connect` handshake with an **empty app** (`tcUrl: rtmp://host/?authmod=adobe&user=X`), which mediamtx ignores → empty path name + no password → `invalid path name: cannot be empty` / 401. Fix is encoder-side: disable built-in auth, embed creds in the stream key (`streamname?user=…&pass=…`).
+
 JWT is `Bearer`-checked by the `requireAuth` middleware on all `/api/v1/` routes except `/auth/login` and `/mediamtx/auth`.
 
 mediamtx calls `POST /api/v1/mediamtx/auth` (no JWT) for every stream connection. The handler (`checkMediaMTXAuth`) validates the supplied password against the user's bcrypt hash — or, for the browser player, a UI JWT passed as the password — then runs glob ACL evaluation.
