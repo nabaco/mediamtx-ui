@@ -4,6 +4,7 @@
   import { auth as authApi } from '../lib/api'
   import { token, currentUser, addToast } from '../lib/stores'
   import LanguageSwitcher from '../lib/components/LanguageSwitcher.svelte'
+  import Wordmark from '../lib/components/Wordmark.svelte'
 
   let username = $state('')
   let password = $state('')
@@ -39,16 +40,9 @@
 
     <!-- Card -->
     <div class="bg-white rounded-2xl shadow-md border border-slate-200 px-8 py-10">
-      <!-- Logo: large bold red C14 wordmark, matching guac.tec14.co.il.
-           Force a Latin-only font stack + LTR direction so the Hebrew page
-           (which switches html dir=rtl and adds Hebrew font fallbacks)
-           renders the C, 1, 4 glyphs identically to the English page. -->
+      <!-- Logo: large TEC14 wordmark, matching the tec14.co.il family. -->
       <div class="flex flex-col items-center mb-8 select-none">
-        <span
-          class="text-7xl font-black tracking-tight text-[#E10E1A] leading-none"
-          dir="ltr"
-          style="font-family: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;"
-        >C14</span>
+        <Wordmark size="text-7xl" />
         <h1 class="text-lg font-bold text-slate-900 mt-3">{$_('app.name')}</h1>
         <p class="text-sm text-slate-500 mt-1">{$_('app.tagline')}</p>
       </div>

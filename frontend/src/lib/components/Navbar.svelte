@@ -6,6 +6,7 @@
   import LanguageSwitcher from './LanguageSwitcher.svelte'
   import { Radio, Users, ShieldCheck, Settings, BookOpen, LogOut, Activity, UserCircle2, Tv } from 'lucide-svelte'
   import Modal from './Modal.svelte'
+  import Wordmark from './Wordmark.svelte'
 
   // When `minimal` is true, nav links and the mobile menu toggle are hidden.
   // Right-side controls (language, account, logout) stay visible.
@@ -74,13 +75,13 @@
       <!-- Logo: link when normal, plain span in minimal mode (no navigation) -->
       {#if minimal}
         <div class="flex items-center gap-2 font-semibold text-slate-900 shrink-0">
-          <Radio class="w-5 h-5 text-indigo-600" />
-          <span class="hidden sm:inline">{$_('app.name')}</span>
+          <Wordmark size="text-xl" />
+          <span class="hidden sm:inline text-slate-500 font-medium">{$_('app.name')}</span>
         </div>
       {:else}
         <a href="/" use:link class="flex items-center gap-2 font-semibold text-slate-900 shrink-0">
-          <Radio class="w-5 h-5 text-indigo-600" />
-          <span class="hidden sm:inline">{$_('app.name')}</span>
+          <Wordmark size="text-xl" />
+          <span class="hidden sm:inline text-slate-500 font-medium">{$_('app.name')}</span>
         </a>
       {/if}
 

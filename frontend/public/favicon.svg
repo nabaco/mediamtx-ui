@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+  <!-- TEC14 family: red tile. Differentiated by a broadcast/signal glyph
+       (transmitting dot + radiating arcs) vs the other apps' wordmark icons. -->
+  <rect width="64" height="64" rx="14" fill="#E10E1A"/>
+  <g fill="none" stroke="#ffffff" stroke-width="5.5" stroke-linecap="round">
+    <path d="M23 29 A12 12 0 0 1 35 41"/>
+    <path d="M23 19 A22 22 0 0 1 45 41"/>
+  </g>
+  <circle cx="23" cy="41" r="6" fill="#ffffff"/>
+</svg>
