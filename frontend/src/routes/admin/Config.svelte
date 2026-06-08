@@ -2,7 +2,7 @@
   import { _ } from 'svelte-i18n'
   import { system as systemApi } from '../../lib/api'
   import type { SystemConfig, SystemInfo } from '../../lib/types'
-  import { FileText, Wifi, WifiOff } from 'lucide-svelte'
+  import { FileText, Wifi, WifiOff, AlertTriangle } from 'lucide-svelte'
 
   let config = $state<SystemConfig | null>(null)
   let info = $state<SystemInfo | null>(null)
@@ -24,6 +24,20 @@
       <div class="w-8 h-8 border-2 border-indigo-200 border-t-indigo-600 rounded-full animate-spin"></div>
     </div>
   {:else}
+    <!-- Config-not-writable banner: changes apply at runtime but won't persist -->
+    {#if info && info.configWritable === false}
+      <div class="flex items-start gap-3 rounded-lg border border-amber-300 bg-amber-50 p-4 text-amber-900">
+        <AlertTriangle class="w-5 h-5 mt-0.5 shrink-0 text-amber-500" />
+        <div class="text-sm">
+          <p class="font-semibold">{$_('config.notWritableTitle')}</p>
+          <p class="mt-0.5 text-amber-800">{$_('config.notWritableBody')}</p>
+          {#if info.configPath}
+            <p class="mt-1 font-mono text-xs text-amber-700">{info.configPath}</p>
+          {/if}
+        </div>
+      </div>
+    {/if}
+
     <!-- System info card -->
     {#if info}
       <div class="card p-4 grid grid-cols-2 sm:grid-cols-4 gap-4">

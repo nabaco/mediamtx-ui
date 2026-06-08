@@ -49,6 +49,7 @@
     "created": "Stream created",
     "updated": "Stream updated",
     "deleted": "Stream deleted",
+    "notPersisted": "Applied at runtime, but not saved — the mediamtx config file is read-only. Changes will be lost on restart.",
     "copy_urls": "Copy URLs",
     "assign_access": "Assign Access",
     "publisher": "Publisher (push)",
@@ -165,7 +166,9 @@
     "title": "MediaMTX Configuration",
     "not_available": "Configuration file not available in remote mode",
     "path": "File path",
-    "raw_config": "Raw Configuration (YAML)"
+    "raw_config": "Raw Configuration (YAML)",
+    "notWritableTitle": "Config file is read-only",
+    "notWritableBody": "mediamtx.yml can't be written, so stream changes apply at runtime but won't survive a restart. Mount the config directory (not the single file) read-write to fix."
   },
   "audit": {
     "title": "Audit Log",

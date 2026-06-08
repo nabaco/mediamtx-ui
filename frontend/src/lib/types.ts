@@ -62,6 +62,11 @@ export interface SystemInfo {
   webrtcPort: number
   rtmpPort: number
   mediamtxOnline: boolean
+  // false when mediamtx.yml can't be persisted (read-only / single-file bind
+  // mount, or no config path). Stream changes apply at runtime but won't survive
+  // a mediamtx restart.
+  configWritable: boolean
+  configPath?: string
 }
 
 export interface SystemConfig {

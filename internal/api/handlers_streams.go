@@ -212,9 +212,14 @@ func (s *Server) handleCreateStream(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := parser.UpsertPath(s.mediamtxYMLPath(), req.Name, cfg); err != nil {
-		jsonErr(w, http.StatusInternalServerError, "stream added at runtime but failed to persist to mediamtx.yml: "+err.Error())
-		return
+	// Persist to mediamtx.yml only when it's writable. On a read-only/single-file
+	// bind mount the runtime change above still took effect; the UI shows a
+	// not-persisted banner/toast (see configWritable + SystemInfo.ConfigWritable).
+	if s.configWritable() {
+		if err := parser.UpsertPath(s.mediamtxYMLPath(), req.Name, cfg); err != nil {
+			jsonErr(w, http.StatusInternalServerError, "stream added at runtime but failed to persist to mediamtx.yml: "+err.Error())
+			return
+		}
 	}
 
 	if req.Description != "" {
@@ -244,9 +249,11 @@ func (s *Server) handleUpdateStream(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := parser.UpsertPath(s.mediamtxYMLPath(), name, cfg); err != nil {
-		jsonErr(w, http.StatusInternalServerError, "stream updated at runtime but failed to persist to mediamtx.yml: "+err.Error())
-		return
+	if s.configWritable() {
+		if err := parser.UpsertPath(s.mediamtxYMLPath(), name, cfg); err != nil {
+			jsonErr(w, http.StatusInternalServerError, "stream updated at runtime but failed to persist to mediamtx.yml: "+err.Error())
+			return
+		}
 	}
 
 	_ = dbpkg.UpsertStreamMeta(s.db, name, req.Description)
@@ -259,9 +266,11 @@ func (s *Server) handleDeleteStream(w http.ResponseWriter, r *http.Request) {
 		jsonErr(w, http.StatusBadGateway, err.Error())
 		return
 	}
-	if err := parser.DeletePath(s.mediamtxYMLPath(), name); err != nil {
-		jsonErr(w, http.StatusInternalServerError, "stream removed at runtime but failed to update mediamtx.yml: "+err.Error())
-		return
+	if s.configWritable() {
+		if err := parser.DeletePath(s.mediamtxYMLPath(), name); err != nil {
+			jsonErr(w, http.StatusInternalServerError, "stream removed at runtime but failed to update mediamtx.yml: "+err.Error())
+			return
+		}
 	}
 	_ = dbpkg.DeleteStreamMeta(s.db, name)
 	noContent(w)

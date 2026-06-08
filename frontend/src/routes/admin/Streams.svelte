@@ -1,7 +1,7 @@
 <script lang="ts">
   import { _ } from 'svelte-i18n'
   import { push } from 'svelte-spa-router'
-  import { streams as streamsApi, users as usersApi, groups as groupsApi, acls as aclsApi } from '../../lib/api'
+  import { streams as streamsApi, users as usersApi, groups as groupsApi, acls as aclsApi, system as systemApi } from '../../lib/api'
   import { addToast } from '../../lib/stores'
   import type { Stream, User, Group } from '../../lib/types'
   import Modal from '../../lib/components/Modal.svelte'
@@ -37,6 +37,10 @@
   // Context menu
   let ctxMenu = $state<{ x: number; y: number; streamName: string } | null>(null)
 
+  // When false, mediamtx.yml isn't writable — changes apply at runtime but
+  // won't survive a mediamtx restart. We warn after each mutation.
+  let configWritable = $state(true)
+
   async function load() {
     loading = true
     try { list = await streamsApi.list() }
@@ -44,7 +48,15 @@
     finally { loading = false }
   }
 
-  $effect(() => { load() })
+  // Surfaces the not-persisted warning after a successful mutation.
+  function warnIfNotPersisted() {
+    if (!configWritable) addToast('info', $_('streams.notPersisted'))
+  }
+
+  $effect(() => {
+    load()
+    systemApi.info().then(i => { configWritable = i.configWritable }).catch(() => {})
+  })
 
   async function toggleExpand(name: string) {
     if (expandedName === name) { expandedName = null; return }
@@ -76,6 +88,7 @@
       const { isPublisher, ...fields } = expandedForm
       await streamsApi.update(expandedName, { ...fields, source: isPublisher ? 'publisher' : fields.source })
       addToast('success', $_('streams.updated'))
+      warnIfNotPersisted()
       expandedName = null
       await load()
     } catch (e: any) {
@@ -91,6 +104,7 @@
       const { isPublisher, ...fields } = addForm
       await streamsApi.create({ ...fields, source: isPublisher ? 'publisher' : fields.source })
       addToast('success', $_('streams.created'))
+      warnIfNotPersisted()
       showAddForm = false
       addForm = { name: '', description: '', source: '', isPublisher: false, sourceOnDemand: false, record: false, maxReaders: 0 }
       await load()
@@ -105,6 +119,7 @@
     try {
       await streamsApi.delete(name)
       addToast('success', $_('streams.deleted'))
+      warnIfNotPersisted()
       showDeleteConfirm = null
       if (expandedName === name) expandedName = null
       await load()
