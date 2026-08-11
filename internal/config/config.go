@@ -13,7 +13,6 @@ type Config struct {
 	MediaMTX MediaMTXConfig
 	Auth     AuthConfig
 	DB       DBConfig
-	Janus    JanusConfig
 	Log      LogConfig
 }
 
@@ -62,11 +61,6 @@ type DBConfig struct {
 	Path string
 }
 
-type JanusConfig struct {
-	// WSAddr is the host:port of the Janus WebSocket API (internal network).
-	WSAddr string
-}
-
 type LogConfig struct {
 	Level string // debug, info, warn, error
 }
@@ -103,9 +97,6 @@ func Load() (*Config, error) {
 
 	// DB defaults
 	v.SetDefault("db.path", "mediamtx-ui.db")
-
-	// Janus defaults
-	v.SetDefault("janus.ws_addr", "janus:8188")
 
 	// Log defaults
 	v.SetDefault("log.level", "info")
@@ -148,9 +139,6 @@ func Load() (*Config, error) {
 		},
 		DB: DBConfig{
 			Path: v.GetString("db.path"),
-		},
-		Janus: JanusConfig{
-			WSAddr: v.GetString("janus.ws_addr"),
 		},
 		Log: LogConfig{
 			Level: v.GetString("log.level"),
