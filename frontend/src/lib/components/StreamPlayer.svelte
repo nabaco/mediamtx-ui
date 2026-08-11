@@ -57,6 +57,23 @@
   const hlsUrl = $derived(`${scheme}://${resolvedHost}:${info.hlsPort}/${streamName}/index.m3u8`)
   const webrtcUrl = $derived(`${scheme}://${resolvedHost}:${info.webrtcPort}/${streamName}`)
 
+  // Chrome sizes the receive buffer for the worst jitter it has seen and keeps
+  // it there, which shows up as playout delay that never comes back down on a
+  // feed that had one rough patch. These hints ask for a small target instead;
+  // both are Chrome-only and ignored elsewhere, and neither can go below what
+  // the network actually needs — the browser still grows the buffer under real
+  // jitter, it just stops holding onto the slack afterwards.
+  const PLAYOUT_TARGET_MS = 100
+
+  function lowerPlayoutBuffer(receiver: RTCRtpReceiver | undefined) {
+    if (!receiver) return
+    const r = receiver as any
+    try {
+      if ('jitterBufferTarget' in r) r.jitterBufferTarget = PLAYOUT_TARGET_MS   // ms, Chrome 114+
+      else if ('playoutDelayHint' in r) r.playoutDelayHint = PLAYOUT_TARGET_MS / 1000 // seconds, older Chrome
+    } catch { /* unsupported: browser keeps its own heuristic */ }
+  }
+
   function stopAll() {
     if (hlsInstance) { hlsInstance.destroy(); hlsInstance = null }
     if (rtcPeer) { rtcPeer.close(); rtcPeer = null }
@@ -82,6 +99,7 @@
 
       pc.ontrack = e => {
         if (stale() || !videoEl) return
+        lowerPlayoutBuffer(e.receiver)
         remoteStream.addTrack(e.track)
         if (!playStarted) {
           playStarted = true

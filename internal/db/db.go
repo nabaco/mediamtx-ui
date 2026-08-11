@@ -3,6 +3,8 @@ package db
 import (
 	"database/sql"
 	"fmt"
+	"os"
+	"path/filepath"
 
 	_ "modernc.org/sqlite"
 )
@@ -67,6 +69,17 @@ CREATE INDEX IF NOT EXISTS idx_acls_subject         ON acls (subject_type, subje
 
 // Open opens (or creates) the SQLite database at path and runs schema migrations.
 func Open(path string) (*sql.DB, error) {
+	// VACUUM rebuilds the database through a temporary file. The container
+	// image has no writable /tmp, so SQLite's temp-path lookup fails with
+	// SQLITE_IOERR_GETTEMPPATH (6410) and the vacuum after a large prune is
+	// lost. Point it at the directory already holding the database: writable
+	// by definition, and on the same filesystem that has to fit the rebuild.
+	if os.Getenv("SQLITE_TMPDIR") == "" {
+		if abs, err := filepath.Abs(path); err == nil {
+			_ = os.Setenv("SQLITE_TMPDIR", filepath.Dir(abs))
+		}
+	}
+
 	db, err := sql.Open("sqlite", path)
 	if err != nil {
 		return nil, fmt.Errorf("open sqlite %s: %w", path, err)
