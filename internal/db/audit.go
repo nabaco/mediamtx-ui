@@ -3,6 +3,8 @@ package db
 import (
 	"database/sql"
 	"fmt"
+	"path/filepath"
+	"strings"
 	"time"
 )
 
@@ -68,9 +70,37 @@ func PruneAuditLog(db *sql.DB, retentionDays int) (int64, error) {
 // VacuumDB rewrites the database file to give freed pages back to the
 // filesystem. Only worth calling after a large prune — SQLite reuses free pages
 // on its own, so routine daily deletes need no vacuum.
+//
+// VACUUM builds the replacement in a temporary file first, and the container
+// image has no writable /tmp: the default search (SQLITE_TMPDIR, TMPDIR,
+// /var/tmp, /usr/tmp, /tmp) comes up empty and VACUUM fails with
+// SQLITE_IOERR_GETTEMPPATH (6410). Setting the env var from Go does not help —
+// modernc.org/sqlite is a translation of the C library and its getenv reads an
+// environ snapshot taken at process start. temp_store_directory sets the same
+// value through the API, so it works in-process, and it is checked before the
+// env vars. It is marked deprecated upstream but still honoured.
 func VacuumDB(db *sql.DB) error {
+	var seq int
+	var name, file string
+	if err := db.QueryRow(`SELECT seq, name, file FROM pragma_database_list WHERE name = 'main'`).
+		Scan(&seq, &name, &file); err != nil {
+		return fmt.Errorf("vacuum: locate database file: %w", err)
+	}
+	if dir := filepath.Dir(file); file != "" && dir != "" {
+		// No placeholders in PRAGMA statements; the value is the path SQLite
+		// itself just reported, not user input.
+		if _, err := db.Exec(fmt.Sprintf("PRAGMA temp_store_directory = '%s'", strings.ReplaceAll(dir, "'", "''"))); err != nil {
+			return fmt.Errorf("vacuum: set temp dir %s: %w", dir, err)
+		}
+	}
 	if _, err := db.Exec("VACUUM"); err != nil {
 		return fmt.Errorf("vacuum: %w", err)
+	}
+	// Under WAL the rebuilt database lands in the -wal file; the main file only
+	// shrinks once those frames are checkpointed back and the log is truncated.
+	// Without this the vacuum "succeeds" and the file on disk never changes.
+	if _, err := db.Exec("PRAGMA wal_checkpoint(TRUNCATE)"); err != nil {
+		return fmt.Errorf("vacuum: checkpoint: %w", err)
 	}
 	return nil
 }
