@@ -32,5 +32,12 @@ auth:
 db:
   path: "mediamtx-ui.db"                 # SQLite database file path
 
+audit:
+  # Days of mediamtx auth-callback history to keep. Every stream connection
+  # attempt writes a row, including the retries of a dead source, so this table
+  # grows far faster than anything else in the DB. Pruned at startup and once a
+  # day after; 0 disables pruning entirely.
+  retention_days: 14
+
 log:
   level: "info"   # debug | info | warn | error

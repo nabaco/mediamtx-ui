@@ -13,6 +13,7 @@ type Config struct {
 	MediaMTX MediaMTXConfig
 	Auth     AuthConfig
 	DB       DBConfig
+	Audit    AuditConfig
 	Log      LogConfig
 }
 
@@ -61,6 +62,12 @@ type DBConfig struct {
 	Path string
 }
 
+type AuditConfig struct {
+	// RetentionDays caps how long auth-callback rows are kept. 0 disables
+	// pruning (unbounded growth — see db.PruneAuditLog).
+	RetentionDays int
+}
+
 type LogConfig struct {
 	Level string // debug, info, warn, error
 }
@@ -97,6 +104,9 @@ func Load() (*Config, error) {
 
 	// DB defaults
 	v.SetDefault("db.path", "mediamtx-ui.db")
+
+	// Audit defaults
+	v.SetDefault("audit.retention_days", 14)
 
 	// Log defaults
 	v.SetDefault("log.level", "info")
@@ -139,6 +149,9 @@ func Load() (*Config, error) {
 		},
 		DB: DBConfig{
 			Path: v.GetString("db.path"),
+		},
+		Audit: AuditConfig{
+			RetentionDays: v.GetInt("audit.retention_days"),
 		},
 		Log: LogConfig{
 			Level: v.GetString("log.level"),

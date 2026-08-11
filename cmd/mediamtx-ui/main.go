@@ -46,6 +46,8 @@ func main() {
 	defer database.Close()
 	slog.Info("database opened", "path", cfg.DB.Path)
 
+	startAuditMaintenance(database, cfg.Audit.RetentionDays)
+
 	if err := seedAdmin(database, cfg); err != nil {
 		slog.Error("admin seed failed", "err", err)
 		os.Exit(1)
@@ -88,6 +90,46 @@ func main() {
 		slog.Error("server stopped", "err", err)
 		os.Exit(1)
 	}
+}
+
+// startAuditMaintenance prunes expired audit rows now and once a day after
+// that. It runs in the background so a first prune over a long-neglected table
+// doesn't delay the listener coming up.
+func startAuditMaintenance(database *sql.DB, retentionDays int) {
+	if retentionDays <= 0 {
+		slog.Warn("audit log pruning disabled, table will grow unbounded")
+		return
+	}
+
+	prune := func() {
+		start := time.Now()
+		n, err := db.PruneAuditLog(database, retentionDays)
+		if err != nil {
+			slog.Error("audit log prune failed", "err", err)
+			return
+		}
+		if n == 0 {
+			return
+		}
+		slog.Info("audit log pruned", "rows", n, "retentionDays", retentionDays, "took", time.Since(start))
+
+		// Only reclaim the file after a big purge; routine daily deletes leave
+		// free pages that SQLite reuses, and VACUUM rewrites the whole DB.
+		if n >= 100_000 {
+			if err := db.VacuumDB(database); err != nil {
+				slog.Error("audit log vacuum failed", "err", err)
+			} else {
+				slog.Info("database vacuumed", "took", time.Since(start))
+			}
+		}
+	}
+
+	go func() {
+		prune()
+		for range time.Tick(24 * time.Hour) {
+			prune()
+		}
+	}()
 }
 
 // seedAdmin creates the initial admin account if the users table is empty.

@@ -30,6 +30,51 @@ func WriteAuditLog(db *sql.DB, e AuditEntry) error {
 	return err
 }
 
+// PruneAuditLog deletes audit rows older than retentionDays and returns how
+// many went. Every mediamtx auth callback writes a row here — a dead camera
+// source retrying, or any reconnect loop, produces tens of thousands of rows a
+// day, so the table has to be capped or it eventually dwarfs the real data
+// (530 MB / 3.7M rows by 2026-08-11 on tec14).
+//
+// Deletion is batched: the pool is capped at one connection, so a single
+// multi-million-row DELETE would hold the only writer for the whole purge and
+// block every auth callback behind it.
+func PruneAuditLog(db *sql.DB, retentionDays int) (int64, error) {
+	if retentionDays <= 0 {
+		return 0, nil
+	}
+	cutoff := fmt.Sprintf("-%d days", retentionDays)
+
+	var total int64
+	for {
+		res, err := db.Exec(
+			`DELETE FROM audit_log WHERE id IN (
+			   SELECT id FROM audit_log WHERE created_at < datetime('now', ?) LIMIT 5000
+			 )`, cutoff)
+		if err != nil {
+			return total, fmt.Errorf("prune audit_log: %w", err)
+		}
+		n, err := res.RowsAffected()
+		if err != nil {
+			return total, err
+		}
+		total += n
+		if n == 0 {
+			return total, nil
+		}
+	}
+}
+
+// VacuumDB rewrites the database file to give freed pages back to the
+// filesystem. Only worth calling after a large prune — SQLite reuses free pages
+// on its own, so routine daily deletes need no vacuum.
+func VacuumDB(db *sql.DB) error {
+	if _, err := db.Exec("VACUUM"); err != nil {
+		return fmt.Errorf("vacuum: %w", err)
+	}
+	return nil
+}
+
 type AuditFilter struct {
 	Username   string
 	StreamPath string
