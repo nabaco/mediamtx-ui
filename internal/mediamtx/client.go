@@ -184,7 +184,7 @@ func (c *Client) do(req *http.Request, out any) error {
 	if err != nil {
 		return fmt.Errorf("mediamtx api %s %s: %w", req.Method, req.URL.Path, err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode >= 400 {
 		body, _ := io.ReadAll(io.LimitReader(resp.Body, 512))

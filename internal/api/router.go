@@ -53,7 +53,6 @@ func NewServer(
 func (s *Server) Handler(frontendFS fs.FS) http.Handler {
 	r := chi.NewRouter()
 
-	r.Use(middleware.RealIP)
 	r.Use(middleware.Recoverer)
 	r.Use(middleware.RequestID)
 	r.Use(cors.Handler(cors.Options{

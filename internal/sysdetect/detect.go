@@ -9,12 +9,12 @@ import (
 type DeployType string
 
 const (
-	DeployDocker     DeployType = "docker"
-	DeployPodman     DeployType = "podman"
-	DeployCompose    DeployType = "compose"
-	DeployQuadlets   DeployType = "quadlets"
-	DeploySystemd    DeployType = "systemd"
-	DeployUnknown    DeployType = "unknown"
+	DeployDocker   DeployType = "docker"
+	DeployPodman   DeployType = "podman"
+	DeployCompose  DeployType = "compose"
+	DeployQuadlets DeployType = "quadlets"
+	DeploySystemd  DeployType = "systemd"
+	DeployUnknown  DeployType = "unknown"
 )
 
 // Detect returns the best guess at how mediamtx is deployed.

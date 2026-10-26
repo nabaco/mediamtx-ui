@@ -44,7 +44,7 @@ func ListGroups(db *sql.DB) ([]*Group, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	var groups []*Group
 	for rows.Next() {
@@ -105,7 +105,7 @@ func GetGroupMembers(db *sql.DB, groupID int64) ([]*User, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	var users []*User
 	for rows.Next() {
@@ -124,7 +124,7 @@ func GetUserGroupIDs(db *sql.DB, userID int64) ([]int64, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	var ids []int64
 	for rows.Next() {
