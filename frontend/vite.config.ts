@@ -11,12 +11,15 @@ export default defineConfig({
     outDir: 'dist',
     emptyOutDir: true,
     chunkSizeWarningLimit: 600,
-    rollupOptions: {
+    rolldownOptions: {
       output: {
-        manualChunks: {
-          vendor: ['svelte', 'svelte/internal', 'svelte-spa-router', 'svelte-i18n'],
-          icons: ['lucide-svelte'],
-          hls: ['hls.js'],
+        // Vite 8 (rolldown) only accepts the function form of manualChunks.
+        manualChunks(id: string) {
+          if (!id.includes('/node_modules/')) return undefined
+          if (id.includes('/node_modules/hls.js/')) return 'hls'
+          if (id.includes('/node_modules/@lucide/svelte/')) return 'icons'
+          if (/\/node_modules\/(svelte|svelte-spa-router|svelte-i18n)\//.test(id)) return 'vendor'
+          return undefined
         },
       },
     },

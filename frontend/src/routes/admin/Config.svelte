@@ -2,7 +2,7 @@
   import { _ } from 'svelte-i18n'
   import { system as systemApi } from '../../lib/api'
   import type { SystemConfig, SystemInfo } from '../../lib/types'
-  import { FileText, Wifi, WifiOff, AlertTriangle } from 'lucide-svelte'
+  import { FileText, Wifi, WifiOff, AlertTriangle } from '@lucide/svelte'
 
   let config = $state<SystemConfig | null>(null)
   let info = $state<SystemInfo | null>(null)

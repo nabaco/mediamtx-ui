@@ -63,7 +63,7 @@ Entry point: `cmd/mediamtx-ui/main.go` wires all packages and seeds the initial 
 - **`routes/`** — one Svelte component per page (Dashboard, StreamView, Login, Instructions, NotFound).
 - **`App.svelte`** — root component handling route switching and auth gating.
 
-Stack: Svelte 5, Vite 6, Tailwind CSS 4, `svelte-spa-router`, `svelte-i18n`, `hls.js`.
+Stack: Svelte 5, Vite 8 (rolldown), Tailwind CSS 4, `svelte-spa-router` 5 (use the `router` object, not stores), `svelte-i18n`, `@lucide/svelte`, `hls.js`.
 
 ### Auth model
 

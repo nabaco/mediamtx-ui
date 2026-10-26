@@ -4,7 +4,7 @@
   import { addToast } from '../../lib/stores'
   import type { User, Group, ACL, Stream } from '../../lib/types'
   import Modal from '../../lib/components/Modal.svelte'
-  import { Plus, Trash2, Shield, Pencil, UserPlus, ChevronDown, ChevronRight } from 'lucide-svelte'
+  import { Plus, Trash2, Shield, Pencil, UserPlus, ChevronDown, ChevronRight } from '@lucide/svelte'
 
   let activeTab = $state<'users' | 'groups' | 'acls'>('users')
 

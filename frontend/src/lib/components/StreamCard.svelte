@@ -1,7 +1,7 @@
 <script lang="ts">
   import { _ } from 'svelte-i18n'
   import { link } from 'svelte-spa-router'
-  import { Eye, Users, Radio, Copy, Check } from 'lucide-svelte'
+  import { Eye, Users, Radio, Copy, Check } from '@lucide/svelte'
   import type { Stream } from '../types'
   import { copyToClipboard } from '../utils'
 

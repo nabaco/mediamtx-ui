@@ -5,7 +5,7 @@
   import { streams as streamsApi } from '../lib/api'
   import type { Stream } from '../lib/types'
   import StreamCard from '../lib/components/StreamCard.svelte'
-  import { RefreshCw } from 'lucide-svelte'
+  import { RefreshCw } from '@lucide/svelte'
 
   let streamList = $state<Stream[]>([])
   let loading = $state(true)

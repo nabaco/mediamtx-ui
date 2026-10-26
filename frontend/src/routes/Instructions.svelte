@@ -3,7 +3,7 @@
   import { system as systemApi } from '../lib/api'
   import { isAdmin } from '../lib/stores'
   import type { SystemInfo } from '../lib/types'
-  import { Terminal, RefreshCw, FileText, ArrowUpCircle, Tv2, Radio, Video, Globe, Upload } from 'lucide-svelte'
+  import { Terminal, RefreshCw, FileText, ArrowUpCircle, Tv2, Radio, Video, Globe, Upload } from '@lucide/svelte'
 
   let info = $state<SystemInfo | null>(null)
   $effect(() => { systemApi.info().then(i => info = i).catch(() => {}) })

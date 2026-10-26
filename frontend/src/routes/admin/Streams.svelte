@@ -5,7 +5,7 @@
   import { addToast } from '../../lib/stores'
   import type { Stream, User, Group } from '../../lib/types'
   import Modal from '../../lib/components/Modal.svelte'
-  import { Plus, Trash2, RefreshCw, ChevronRight, ChevronDown, Loader, ExternalLink, Copy, Check, Link, UserPlus } from 'lucide-svelte'
+  import { Plus, Trash2, RefreshCw, ChevronRight, ChevronDown, Loader, ExternalLink, Copy, Check, Link, UserPlus } from '@lucide/svelte'
   import { copyToClipboard } from '../../lib/utils'
 
   let list = $state<Stream[]>([])
