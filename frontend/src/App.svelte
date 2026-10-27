@@ -1,5 +1,5 @@
 <script lang="ts">
-  import Router, { location } from 'svelte-spa-router'
+  import Router, { router } from 'svelte-spa-router'
   import { locale } from 'svelte-i18n'
   import './lib/i18n/index'
   import { lang, token, currentUser, logout, isAdmin } from './lib/stores'
@@ -44,7 +44,7 @@
 
   // Non-admins on /ch14-live get a minimal navbar (no menu links, but
   // password change and logout still available).
-  const minimalNav = $derived($location === '/ch14-live' && !$isAdmin)
+  const minimalNav = $derived(router.location === '/ch14-live' && !$isAdmin)
 </script>
 
 {#if $token}

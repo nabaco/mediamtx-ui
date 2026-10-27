@@ -40,7 +40,7 @@ func ListStreamMeta(db *sql.DB) (map[string]*StreamMeta, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	out := make(map[string]*StreamMeta)
 	for rows.Next() {

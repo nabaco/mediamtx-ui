@@ -12,7 +12,7 @@ func TestPruneAndVacuum(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer d.Close()
+	defer func() { _ = d.Close() }()
 
 	for i := 0; i < 20000; i++ {
 		if err := WriteAuditLog(d, AuditEntry{Username: "u", StreamPath: "p", Action: "read", Protocol: "rtsp", RemoteAddr: "1.2.3.4", Allowed: true}); err != nil {

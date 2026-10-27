@@ -49,13 +49,13 @@ type PathConfig struct {
 // GlobalConfig is the response from GET /v3/config/global/get.
 // We only decode the fields we display; the full YAML is shown raw.
 type GlobalConfig struct {
-	LogLevel          string `json:"logLevel"`
+	LogLevel          string   `json:"logLevel"`
 	LogDestinations   []string `json:"logDestinations"`
-	LogFile           string `json:"logFile"`
-	ReadTimeout       string `json:"readTimeout"`
-	WriteTimeout      string `json:"writeTimeout"`
-	WriteQueueSize    int    `json:"writeQueueSize"`
-	UDPMaxPayloadSize int    `json:"udpMaxPayloadSize"`
+	LogFile           string   `json:"logFile"`
+	ReadTimeout       string   `json:"readTimeout"`
+	WriteTimeout      string   `json:"writeTimeout"`
+	WriteQueueSize    int      `json:"writeQueueSize"`
+	UDPMaxPayloadSize int      `json:"udpMaxPayloadSize"`
 	// API
 	API        bool   `json:"api"`
 	APIAddress string `json:"apiAddress"`
@@ -85,20 +85,20 @@ type AuthConfig struct {
 
 // RTSPConn is one active RTSP connection.
 type RTSPConn struct {
-	ID         string    `json:"id"`
-	Created    time.Time `json:"created"`
-	RemoteAddr string    `json:"remoteAddr"`
-	BytesReceived uint64 `json:"bytesReceived"`
-	BytesSent     uint64 `json:"bytesSent"`
+	ID            string    `json:"id"`
+	Created       time.Time `json:"created"`
+	RemoteAddr    string    `json:"remoteAddr"`
+	BytesReceived uint64    `json:"bytesReceived"`
+	BytesSent     uint64    `json:"bytesSent"`
 }
 
 // WebRTCSession is one active WebRTC session.
 type WebRTCSession struct {
-	ID         string    `json:"id"`
-	Created    time.Time `json:"created"`
-	RemoteAddr string    `json:"remoteAddr"`
-	PeerConnectionState string `json:"peerConnectionState"`
-	Path       string    `json:"path"`
-	BytesReceived uint64 `json:"bytesReceived"`
-	BytesSent     uint64 `json:"bytesSent"`
+	ID                  string    `json:"id"`
+	Created             time.Time `json:"created"`
+	RemoteAddr          string    `json:"remoteAddr"`
+	PeerConnectionState string    `json:"peerConnectionState"`
+	Path                string    `json:"path"`
+	BytesReceived       uint64    `json:"bytesReceived"`
+	BytesSent           uint64    `json:"bytesSent"`
 }

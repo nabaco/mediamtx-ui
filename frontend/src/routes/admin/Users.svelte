@@ -4,7 +4,7 @@
   import { addToast } from '../../lib/stores'
   import type { User, Group, ACL, Stream } from '../../lib/types'
   import Modal from '../../lib/components/Modal.svelte'
-  import { Plus, Trash2, Shield, Pencil, UserPlus, ChevronDown, ChevronRight } from 'lucide-svelte'
+  import { Plus, Trash2, Shield, Pencil, UserPlus, ChevronDown, ChevronRight } from '@lucide/svelte'
 
   let activeTab = $state<'users' | 'groups' | 'acls'>('users')
 
@@ -36,11 +36,15 @@
   let streamList = $state<Stream[]>([])
 
   async function loadAll() {
-    const [u, g, a, s] = await Promise.all([usersApi.list(), groupsApi.list(), aclsApi.list(), streamsApi.list()])
-    userList = u
-    groupList = g
-    aclList = a
-    streamList = s
+    // allSettled: the stream list comes from mediamtx, so a mediamtx outage
+    // must not blank the users/groups/ACLs that live in our own DB.
+    const [u, g, a, s] = await Promise.allSettled([usersApi.list(), groupsApi.list(), aclsApi.list(), streamsApi.list()])
+    if (u.status === 'fulfilled') userList = u.value
+    if (g.status === 'fulfilled') groupList = g.value
+    if (a.status === 'fulfilled') aclList = a.value
+    if (s.status === 'fulfilled') streamList = s.value
+    const failed = [u, g, a, s].find((r): r is PromiseRejectedResult => r.status === 'rejected')
+    if (failed) throw failed.reason
   }
 
   $effect(() => { loadAll().catch((e: any) => addToast('error', e.message)) })

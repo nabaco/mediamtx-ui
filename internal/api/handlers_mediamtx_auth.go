@@ -27,15 +27,15 @@ func userAndPassFromQuery(query string) (user, pass string) {
 // See: https://github.com/bluenviron/mediamtx#authentication
 // Note: mediamtx v1 uses "ip" (not "remoteAddr") and adds a "token" field.
 type mediamtxAuthRequest struct {
-	User       string `json:"user"`
-	Password   string `json:"password"`
-	Token      string `json:"token"`   // query-param token (?token=xxx), used by HLS/WebRTC clients
-	IP         string `json:"ip"`      // mediamtx v1 field name
-	Action     string `json:"action"`  // "read" | "publish"
-	Path       string `json:"path"`
-	Protocol   string `json:"protocol"` // "rtsp" | "rtmp" | "hls" | "webrtc" | "srt"
-	ID         string `json:"id"`
-	Query      string `json:"query"`
+	User     string `json:"user"`
+	Password string `json:"password"`
+	Token    string `json:"token"`  // query-param token (?token=xxx), used by HLS/WebRTC clients
+	IP       string `json:"ip"`     // mediamtx v1 field name
+	Action   string `json:"action"` // "read" | "publish"
+	Path     string `json:"path"`
+	Protocol string `json:"protocol"` // "rtsp" | "rtmp" | "hls" | "webrtc" | "srt"
+	ID       string `json:"id"`
+	Query    string `json:"query"`
 }
 
 func (s *Server) handleMediaMTXAuth(w http.ResponseWriter, r *http.Request) {

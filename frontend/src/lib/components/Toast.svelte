@@ -1,6 +1,6 @@
 <script lang="ts">
   import { toasts } from '../stores'
-  import { CheckCircle, XCircle, Info, X } from 'lucide-svelte'
+  import { CheckCircle, XCircle, Info, X } from '@lucide/svelte'
 
   const icons = { success: CheckCircle, error: XCircle, info: Info }
   const colors = {

@@ -141,7 +141,7 @@ func ListAuditLog(db *sql.DB, f AuditFilter) ([]*AuditEntry, int, error) {
 	if err != nil {
 		return nil, 0, err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	var entries []*AuditEntry
 	for rows.Next() {

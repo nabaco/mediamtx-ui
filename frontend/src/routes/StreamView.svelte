@@ -5,7 +5,7 @@
   import { addToast, token } from '../lib/stores'
   import type { Stream, StreamURLs, SystemInfo } from '../lib/types'
   import StreamPlayer from '../lib/components/StreamPlayer.svelte'
-  import { Copy, Check, ArrowLeft } from 'lucide-svelte'
+  import { Copy, Check, ArrowLeft } from '@lucide/svelte'
   import { copyToClipboard } from '../lib/utils'
 
   interface Props { params: { name: string } }

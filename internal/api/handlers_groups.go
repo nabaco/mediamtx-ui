@@ -162,28 +162,3 @@ func toGroupResponse(g *dbpkg.Group) groupResponse {
 		CreatedAt: g.CreatedAt.Format("2006-01-02T15:04:05Z"),
 	}
 }
-
-// handleListGroupsWithMembers is called from the chi route with /{id} having members query param
-func (s *Server) handleGetGroupWithMembers(w http.ResponseWriter, r *http.Request) {
-	id, err := pathParamID(r, "id")
-	if err != nil {
-		jsonErr(w, http.StatusBadRequest, "invalid id")
-		return
-	}
-	g, err := dbpkg.GetGroupByID(s.db, id)
-	if err == dbpkg.ErrNotFound {
-		jsonErr(w, http.StatusNotFound, "group not found")
-		return
-	}
-	members, err := dbpkg.GetGroupMembers(s.db, id)
-	if err != nil {
-		jsonErr(w, http.StatusInternalServerError, err.Error())
-		return
-	}
-	gr := toGroupResponse(g)
-	gr.Members = make([]userResponse, len(members))
-	for i, u := range members {
-		gr.Members[i] = toUserResponse(u)
-	}
-	jsonOK(w, gr)
-}

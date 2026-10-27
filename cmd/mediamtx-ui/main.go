@@ -43,7 +43,7 @@ func main() {
 		slog.Error("database open failed", "err", err)
 		os.Exit(1)
 	}
-	defer database.Close()
+	defer func() { _ = database.Close() }()
 	slog.Info("database opened", "path", cfg.DB.Path)
 
 	startAuditMaintenance(database, cfg.Audit.RetentionDays)

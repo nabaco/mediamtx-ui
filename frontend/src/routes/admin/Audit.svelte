@@ -2,7 +2,7 @@
   import { _ } from 'svelte-i18n'
   import { audit as auditApi } from '../../lib/api'
   import type { AuditEntry } from '../../lib/types'
-  import { Search, ChevronLeft, ChevronRight } from 'lucide-svelte'
+  import { Search, ChevronLeft, ChevronRight } from '@lucide/svelte'
 
   const PAGE_SIZE = 50
 

@@ -1,10 +1,10 @@
 <script lang="ts">
   import { _ } from 'svelte-i18n'
-  import { link, location } from 'svelte-spa-router'
+  import { link, router } from 'svelte-spa-router'
   import { currentUser, isAdmin, logout } from '../stores'
   import { auth as authApi } from '../api'
   import LanguageSwitcher from './LanguageSwitcher.svelte'
-  import { Radio, Users, ShieldCheck, Settings, BookOpen, LogOut, Activity, UserCircle2, Tv } from 'lucide-svelte'
+  import { Radio, Users, ShieldCheck, Settings, BookOpen, LogOut, Activity, UserCircle2, Tv } from '@lucide/svelte'
   import Modal from './Modal.svelte'
   import Wordmark from './Wordmark.svelte'
 
@@ -60,7 +60,7 @@
 
   const visible = $derived(navLinks.filter(l => l.always || ($isAdmin && l.adminOnly)))
 
-  const currentPath = $derived($location)
+  const currentPath = $derived(router.location)
   $effect(() => { currentPath; showAccount = false })
 
   function isActive(href: string) {

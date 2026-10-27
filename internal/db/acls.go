@@ -68,7 +68,7 @@ func ListACLs(db *sql.DB) ([]*ACL, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	var acls []*ACL
 	for rows.Next() {
@@ -110,7 +110,7 @@ func CheckAccess(db *sql.DB, userID int64, streamPath string, action ACLAction) 
 	if err != nil {
 		return false, err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	for rows.Next() {
 		var pattern string
