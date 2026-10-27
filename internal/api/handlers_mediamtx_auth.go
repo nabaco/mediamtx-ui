@@ -2,6 +2,7 @@ package api
 
 import (
 	"bytes"
+	"crypto/subtle"
 	"io"
 	"log/slog"
 	"net/http"
@@ -54,8 +55,16 @@ func (s *Server) handleMediaMTXAuth(w http.ResponseWriter, r *http.Request) {
 
 	allowed, username := s.checkMediaMTXAuth(req)
 
+	// Control-plane actions (api/metrics/pprof) arrive on every request the
+	// UI makes to the mediamtx API; audit only the denials so the stream
+	// access log is not flooded.
+	audit := !isServiceAction(req.Action) || !allowed
+
 	// Write audit log asynchronously so we don't block the response
 	go func() {
+		if !audit {
+			return
+		}
 		_ = dbpkg.WriteAuditLog(s.db, dbpkg.AuditEntry{
 			Username:   username,
 			StreamPath: req.Path,
@@ -83,7 +92,51 @@ func (s *Server) handleMediaMTXAuth(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// isServiceAction reports whether a mediamtx auth action targets the control
+// plane rather than a stream. Since mediamtx 1.20.1 the default
+// authHTTPExclude is empty, so these reach the HTTP callback too.
+func isServiceAction(action string) bool {
+	switch action {
+	case "api", "metrics", "pprof":
+		return true
+	}
+	return false
+}
+
+// isStreamAction reports whether action is one we map onto stream ACLs.
+// "playback" (the recordings playback server) is treated as read.
+func isStreamAction(action string) bool {
+	switch action {
+	case "", "read", "publish", "playback":
+		return true
+	}
+	return false
+}
+
+// checkServiceAuth allows control-plane actions only for the mediamtx API
+// service account mediamtx-ui itself uses (mediamtx.api_user / api_pass).
+// UI users, admins included, never get raw mediamtx API access this way.
+func (s *Server) checkServiceAuth(req mediamtxAuthRequest) bool {
+	u, p := s.cfg.MediaMTX.APIUser, s.cfg.MediaMTX.APIPass
+	if u == "" || p == "" {
+		return false
+	}
+	userOK := subtle.ConstantTimeCompare([]byte(req.User), []byte(u)) == 1
+	passOK := subtle.ConstantTimeCompare([]byte(req.Password), []byte(p)) == 1
+	return userOK && passOK
+}
+
 func (s *Server) checkMediaMTXAuth(req mediamtxAuthRequest) (allowed bool, resolvedUsername string) {
+	if isServiceAction(req.Action) {
+		if req.User == "" {
+			return false, "anonymous"
+		}
+		return s.checkServiceAuth(req), req.User
+	}
+	if !isStreamAction(req.Action) {
+		return false, req.User
+	}
+
 	// Extract credentials from query string if not in top-level fields.
 	if req.User == "" && req.Query != "" {
 		req.User, req.Password = userAndPassFromQuery(req.Query)

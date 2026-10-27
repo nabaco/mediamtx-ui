@@ -41,9 +41,11 @@ type PathConfig struct {
 	Record         bool   `json:"record"`
 	// MaxReaders limits simultaneous readers (0 = unlimited)
 	MaxReaders int `json:"maxReaders"`
-	// RunOnReady / RunOnNotReady are shell commands mediamtx executes on state change
-	RunOnReady    string `json:"runOnReady"`
-	RunOnNotReady string `json:"runOnNotReady"`
+	// RunOnAvailable / RunOnUnavailable are shell commands mediamtx executes on
+	// state change (renamed from runOnReady / runOnNotReady in mediamtx 1.19.3).
+	// omitempty: PatchConfigPath must not blank hooks the UI does not edit.
+	RunOnAvailable   string `json:"runOnAvailable,omitempty"`
+	RunOnUnavailable string `json:"runOnUnavailable,omitempty"`
 }
 
 // GlobalConfig is the response from GET /v3/config/global/get.

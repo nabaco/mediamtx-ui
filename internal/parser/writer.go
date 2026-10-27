@@ -15,21 +15,40 @@ import (
 // writeMu serializes concurrent writes to the config file.
 var writeMu sync.Mutex
 
-// UpsertPath adds or replaces a paths.<name> entry in mediamtx.yml.
+// RedactedCredential is the placeholder mediamtx >= 1.20.1 returns from the
+// API in place of credentials (readPass, publishPass, authInternalUsers pass).
+// It must never be written back to mediamtx.yml.
+const RedactedCredential = "<redacted>"
+
+// UpsertPath adds or updates a paths.<name> entry in mediamtx.yml.
 // If configPath is empty, the call is a no-op (persistence disabled).
-// Comments and unrelated sections are preserved.
+//
+// Only the keys the UI manages (source, sourceOnDemand, record, maxReaders)
+// are touched; every other key already in the entry (rtspTransport,
+// readUser/readPass, runOnInit, ...) is preserved as-is. That matters because
+// the API no longer returns real credentials, so the file is the only place
+// they survive. Comments and unrelated sections are preserved.
 func UpsertPath(configPath, name string, cfg mediamtx.PathConfig) error {
 	if configPath == "" {
 		return nil
 	}
+	if cfg.Source == RedactedCredential {
+		return fmt.Errorf("refusing to write redacted value for paths.%s.source", name)
+	}
 	return mutatePathsFile(configPath, func(paths *yaml.Node) {
-		entry := pathEntryNode(cfg)
 		for i := 0; i < len(paths.Content); i += 2 {
 			if paths.Content[i].Value == name {
-				paths.Content[i+1] = entry
+				entry := paths.Content[i+1]
+				if entry.Kind != yaml.MappingNode {
+					entry = &yaml.Node{Kind: yaml.MappingNode}
+					paths.Content[i+1] = entry
+				}
+				applyManagedKeys(entry, cfg)
 				return
 			}
 		}
+		entry := &yaml.Node{Kind: yaml.MappingNode}
+		applyManagedKeys(entry, cfg)
 		paths.Content = append(paths.Content,
 			&yaml.Node{Kind: yaml.ScalarNode, Value: name},
 			entry,
@@ -111,35 +130,47 @@ func findOrCreateMapping(parent *yaml.Node, key string) *yaml.Node {
 	return v
 }
 
-func pathEntryNode(cfg mediamtx.PathConfig) *yaml.Node {
-	n := &yaml.Node{Kind: yaml.MappingNode}
-	addStr := func(k, v string) {
-		n.Content = append(n.Content,
-			&yaml.Node{Kind: yaml.ScalarNode, Value: k},
-			&yaml.Node{Kind: yaml.ScalarNode, Value: v},
-		)
-	}
-	addBool := func(k string, v bool) {
-		val := "false"
-		if v {
-			val = "true"
+// applyManagedKeys sets (or removes, when zero-valued) the UI-managed keys in
+// a path mapping node, leaving all other keys untouched.
+func applyManagedKeys(n *yaml.Node, cfg mediamtx.PathConfig) {
+	set := func(k, v, tag string) {
+		for i := 0; i < len(n.Content); i += 2 {
+			if n.Content[i].Value == k {
+				n.Content[i+1] = &yaml.Node{Kind: yaml.ScalarNode, Value: v, Tag: tag}
+				return
+			}
 		}
 		n.Content = append(n.Content,
 			&yaml.Node{Kind: yaml.ScalarNode, Value: k},
-			&yaml.Node{Kind: yaml.ScalarNode, Value: val},
+			&yaml.Node{Kind: yaml.ScalarNode, Value: v, Tag: tag},
 		)
 	}
+	del := func(k string) {
+		for i := 0; i < len(n.Content); i += 2 {
+			if n.Content[i].Value == k {
+				n.Content = append(n.Content[:i], n.Content[i+2:]...)
+				return
+			}
+		}
+	}
 	if cfg.Source != "" {
-		addStr("source", cfg.Source)
+		set("source", cfg.Source, "")
+	} else {
+		del("source")
 	}
 	if cfg.SourceOnDemand {
-		addBool("sourceOnDemand", true)
+		set("sourceOnDemand", "true", "!!bool")
+	} else {
+		del("sourceOnDemand")
 	}
 	if cfg.Record {
-		addBool("record", true)
+		set("record", "true", "!!bool")
+	} else {
+		del("record")
 	}
 	if cfg.MaxReaders > 0 {
-		addStr("maxReaders", strconv.Itoa(cfg.MaxReaders))
+		set("maxReaders", strconv.Itoa(cfg.MaxReaders), "!!int")
+	} else {
+		del("maxReaders")
 	}
-	return n
 }

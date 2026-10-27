@@ -85,10 +85,13 @@ All settings can be set via environment variables: `MEDIAMTX_UI_<KEY>` (dots bec
 Add to your `mediamtx.yml`:
 
 ```yaml
-auth:
-  method: http
-  httpAddress: http://mediamtx-ui-host:9996/api/v1/mediamtx/auth
+authMethod: http
+authHTTPAddress: http://mediamtx-ui-host:9996/api/v1/mediamtx/auth
 ```
+
+Tested against mediamtx 1.19.3 and 1.21.3. From mediamtx 1.20.1 on, the mediamtx API, metrics and
+pprof requests also go through this callback. Only the service account set in `mediamtx.api_user` /
+`mediamtx.api_pass` is allowed to use them.
 
 See `deploy/mediamtx-auth-snippet.yml` for more options.
 
